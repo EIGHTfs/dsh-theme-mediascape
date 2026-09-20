@@ -12,7 +12,15 @@ const fs = require("fs");
 const path = require("path");
 
 const root = __dirname;
-const templatePath = path.join(root, "lib", "client.template.js");
+// 浏览器端模板已按职责拆分为 lib/parts/*.js（见 scripts/split-template.py），
+// 本脚本按固定顺序拼接回完整模板再注入素材清单——顺序不变则产物与拆分前逐字节一致。
+const partsDir = path.join(root, "lib", "parts");
+const PART_ORDER = [
+  "00-head.js", "01-constants.js", "02-tools.js", "03-tokens.js", "04-assets.js",
+  "05-identity-css.js", "06-boot.js", "07-wallpaper.js", "08-wallpaper-upload.js",
+  "09-ambience.js", "10-typesound.js", "11-music-parts.js", "12-music-player.js",
+  "13-emotes.js", "14-egg.js", "15-dock.js", "16-apply.js",
+];
 const clientPath = path.join(root, "lib", "client.js");
 const assetsDir = path.join(root, "assets");
 
@@ -143,7 +151,7 @@ if (fs.existsSync(figureDir)) {
 }
 
 // ── 3.5) 表情包（已停用 2026-09-20：运行时不再注入/引用，代码保留为死代码；GIF/表情包/ 文件保留）──
-// 若日后恢复：取消下方注释，并在 client.template.js 恢复 startEmotes() 调用与 EMOTES 依赖。
+// 若日后恢复：取消下方注释，并在 lib/parts/13-emotes.js 恢复 startEmotes() 调用与 EMOTES 依赖。
 // const emoteDir = path.join(gifDir, "表情包");
 // const emoteManifest = [];
 // if (fs.existsSync(emoteDir)) {
@@ -158,7 +166,7 @@ if (fs.existsSync(figureDir)) {
 // emoteManifest.forEach((e) => console.log(`  ${e.id}  (file ${sizeMb(path.join(emoteDir, e.label + ".gif"))} MB → ${e.url})`));
 
 // ── 4) 注入 ──
-let src = fs.readFileSync(templatePath, "utf8");
+let src = PART_ORDER.map((name) => fs.readFileSync(path.join(partsDir, name), "utf8")).join("");
 const manifestJson = JSON.stringify(manifest);
 src = src.replace(
   /\/\*__FIREFLY_BG_MANIFEST_START__\*\/[\s\S]*?\/\*__FIREFLY_BG_MANIFEST_END__\*\//,
