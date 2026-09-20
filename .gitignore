@@ -12,6 +12,7 @@ lib/client.js
 node_modules.orig/
 
 # ── 运行/临时文件（启停脚本 PID、预览日志、回收残留）──
+generated/
 *.pid
 *.log
 *.trash*

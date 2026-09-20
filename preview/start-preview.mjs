@@ -23,7 +23,7 @@
  */
 import { createServer } from 'node:http';
 import { request as httpRequest } from 'node:http';
-import { createReadStream, existsSync, statSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, normalize, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -321,6 +321,36 @@ const server = createServer((req, res) => {
 
   // 配色对照页（流萤 vs 知更鸟，静态对照用）
   if (pathname === '/theme-swatch.html') { serveFile(res, join(SCRIPT_DIR, 'theme-swatch.html')); return; }
+
+  // 配色导出落盘：POST { name, css } → preview/generated/<name>.css（对照页「导出 CSS」用）
+  if (req.method === 'POST' && pathname === '/api/theme-save') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 512 * 1024) { req.destroy(); } });
+    req.on('end', () => {
+      try {
+        const body = JSON.parse(raw || '{}');
+        const name = String(body.name || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+        const css = String(body.css || '');
+        if (!name || !css) { send(res, 400, JSON.stringify({ ok: false, error: '缺 name/css' }), 'application/json'); return; }
+        const genDir = join(SCRIPT_DIR, 'generated');
+        mkdirSync(genDir, { recursive: true });
+        const file = join(genDir, name + '.css');
+        writeFileSync(file, css, 'utf8');
+        console.log(`[theme-save] ${name}.css ${css.length}B`);
+        send(res, 200, JSON.stringify({ ok: true, path: file, bytes: css.length }), 'application/json');
+      } catch (e) {
+        send(res, 500, JSON.stringify({ ok: false, error: e.message }), 'application/json');
+      }
+    });
+    return;
+  }
+
+  // /generated/* → 导出的配色 CSS（GET 供对照页回读/展示）
+  if (req.method === 'GET' && pathname.startsWith('/generated/')) {
+    const file = normalize(join(SCRIPT_DIR, pathname.replace(/^\/generated\//, 'generated/')));
+    if (file.startsWith(join(SCRIPT_DIR, 'generated'))) { serveFile(res, file); return; }
+    send(res, 403, 'forbidden'); return;
+  }
 
   // /lib/* → 插件根 lib/（preview.html 里 ../lib/client.js 在 HTTP 下规范化为 /lib/client.js）
   if (pathname.startsWith('/lib/')) {

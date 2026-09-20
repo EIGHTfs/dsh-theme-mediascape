@@ -3,100 +3,313 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>主题配色对照 · 流萤 vs 知更鸟</title>
+<title>主题配色对照 · 自由选基底对比 + 点击选色</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0a0a12; color: #e8e6f0; padding: 28px; }
-  h1 { font-size: 22px; margin-bottom: 6px; letter-spacing: 1px; }
-  .sub { font-size: 13px; color: #8a86a0; margin-bottom: 22px; }
+  body { font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0a0a12; color: #e8e6f0; padding: 24px; }
+  h1 { font-size: 21px; margin-bottom: 4px; letter-spacing: 1px; }
+  .sub { font-size: 13px; color: #8a86a0; margin-bottom: 16px; }
+  .toolbar { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .pick { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #b8b4c8; }
+  .pick select { background: #16122a; color: #e8e6f0; border: 1px solid rgba(212,175,55,.35); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .pick select:focus { outline: none; border-color: #d4af37; }
+  .btn-act { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(212,175,55,.4); background: rgba(138,109,155,.2); color: #fdf0fa; cursor: pointer; }
+  .btn-act:hover { background: rgba(138,109,155,.35); }
+  .btn-act:disabled { opacity: .45; cursor: not-allowed; }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
   .col { border-radius: 14px; padding: 18px; border: 1px solid rgba(255,255,255,.08); }
-  .col.old { background: #0d1420; }           /* 流萤深空蓝黑 */
-  .col.new { background: #100e1c; }           /* 知更鸟深紫夜空 */
-  .col h2 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .col h2 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .col .hint { font-size: 11px; color: #8a86a0; font-weight: 400; margin-left: auto; }
   .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
-  .badge.old { background: rgba(0,255,135,.15); color: #7dff9e; }
-  .badge.new { background: rgba(212,175,55,.15); color: #d4af37; }
-  .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
   .swatch { border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; min-height: 46px; }
   .swatch .name { font-weight: 600; }
   .swatch .hex { font-family: 'SF Mono', Consolas, monospace; opacity: .85; }
-  .swatch.dark-text { color: #0b0b12; }
-  .sect { font-size: 12px; color: #8a86a0; margin: 14px 0 8px; letter-spacing: 2px; text-transform: uppercase; }
+  .sect { font-size: 12px; color: #8a86a0; margin: 14px 0 8px; letter-spacing: 2px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+  .sect .tip { font-size: 11px; letter-spacing: 0; color: #6e6478; text-transform: none; }
   .ui { display: flex; flex-direction: column; gap: 10px; }
   .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid transparent; cursor: default; }
+  .comp { border-radius: 8px; cursor: pointer; transition: transform .08s; position: relative; }
+  .comp:hover { outline: 2px dashed rgba(212,175,55,.5); outline-offset: 2px; }
+  .comp.clicked::after { content: '✓ 点击换色'; position: absolute; top: -18px; right: 0; font-size: 10px; color: #d4af37; background: rgba(10,10,18,.85); padding: 1px 6px; border-radius: 6px; }
+  .btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid transparent; }
   .chip { padding: 4px 12px; border-radius: 999px; font-size: 12px; }
   .card { border-radius: 12px; padding: 14px; font-size: 13px; line-height: 1.7; }
   .text-primary { font-size: 14px; }
   .text-dim { font-size: 13px; }
-  .gold-glow { text-shadow: 0 0 14px rgba(212,175,55,.5); }
   .note { margin-top: 22px; font-size: 12px; color: #8a86a0; line-height: 1.8; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+  /* 选色器浮层 */
+  .picker { position: fixed; z-index: 99; background: #16122a; border: 1px solid rgba(212,175,55,.4); border-radius: 12px; padding: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); width: 260px; display: none; }
+  .picker.open { display: block; }
+  .picker h4 { font-size: 12px; margin-bottom: 8px; color: #b8b4c8; }
+  .picker .colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .picker .c { height: 40px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; display: flex; align-items: flex-end; justify-content: center; font-size: 10px; padding-bottom: 3px; }
+  .picker .c:hover { border-color: #fff; }
+  .picker .c.active { border-color: #d4af37; }
+  .picker .custom { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a86a0; }
+  .picker .custom input[type=color] { width: 34px; height: 26px; border: none; background: transparent; cursor: pointer; }
+  .picker .custom input[type=text] { flex: 1; background: #100c1c; border: 1px solid rgba(255,255,255,.15); color: #e8e6f0; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-family: monospace; }
+  .picker .close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: #8a86a0; font-size: 13px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20,16,30,.95); border: 1px solid rgba(107,142,90,.5); color: #fdf0fa; padding: 8px 18px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
-<h1>🎨 dsh-theme-mediascape · 配色对照</h1>
-<div class="sub">左 = 流萤（旧基底，暂存仅对照） · 右 = 知更鸟（新基底，当前启用）—— 知更鸟 6 色全映射</div>
+<h1>🎨 dsh-theme-mediascape · 配色对照（可交互）</h1>
+<div class="sub">左右下拉框自由选基底对比；组件模拟区点击任意元素 → 弹出 6 色选色器（或自定义色）实时换色；「导出 CSS」把当前两列配置落盘 preview/generated/</div>
+
+<div class="toolbar">
+  <div class="pick">左基底 <select id="pickL"></select></div>
+  <div class="pick">右基底 <select id="pickR"></select></div>
+  <button class="btn-act" id="btnExport">⬇ 导出 CSS</button>
+  <button class="btn-act" id="btnReset">↺ 重置默认</button>
+</div>
 
 <div class="cols">
-  <!-- ═════════ 流萤（旧） ═════════ -->
-  <div class="col old">
-    <h2>流萤 · 深空蓝黑 × 萤火绿 <span class="badge old">暂存（仅对照）</span></h2>
-    <div class="swatches">
-      <div class="swatch" style="background:#7dff9e;color:#06240f"><span class="name">强调绿</span><span class="hex">#7dff9e</span></div>
-      <div class="swatch" style="background:#00e676;color:#042b11"><span class="name">按钮绿</span><span class="hex">#00e676</span></div>
-      <div class="swatch" style="background:#eafff3;color:#06240f"><span class="name">主文字</span><span class="hex">#eafff3</span></div>
-      <div class="swatch" style="background:#a9c9b9;color:#0b1f15"><span class="name">次文字</span><span class="hex">#a9c9b9</span></div>
-      <div class="swatch" style="background:#0d1420;color:#eafff3"><span class="name">背景</span><span class="hex">#0d1420</span></div>
-      <div class="swatch" style="background:#16283f;color:#eafff3"><span class="name">浮层</span><span class="hex">#16283f</span></div>
-    </div>
-    <div class="sect">组件模拟</div>
-    <div class="ui">
-      <div class="row">
-        <div class="btn" style="background:#00e676;color:#042b11">主要按钮</div>
-        <div class="btn" style="background:rgba(0,230,118,.14);color:#00e676;border:1px solid rgba(0,255,135,.38)">次要按钮</div>
-        <div class="chip" style="background:rgba(0,255,135,.12);color:#7dff9e">激活态</div>
-      </div>
-      <div class="card" style="background:rgba(13,21,37,.72);border:1px solid rgba(0,255,135,.22)">
-        <div class="text-primary" style="color:#eafff3">主文字 · 流萤萤火归位</div>
-        <div class="text-dim" style="color:#a9c9b9">次文字 · 次级信息层级</div>
-        <div style="color:#6f8a7c">三级文字 · 更弱的信息</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═════════ 知更鸟（新） ═════════ -->
-  <div class="col new">
-    <h2>知更鸟 · 深紫夜空 × 6 色 <span class="badge new">新基底（当前启用）</span></h2>
-    <div class="swatches">
-      <div class="swatch" style="background:#FDF0FA;color:#2a1b2e"><span class="name">肤色</span><span class="hex">#FDF0FA</span></div>
-      <div class="swatch" style="background:#C8B8D8;color:#2a1b2e"><span class="name">发色</span><span class="hex">#C8B8D8</span></div>
-      <div class="swatch" style="background:#6B8E5A;color:#f0f0f5"><span class="name">瞳色</span><span class="hex">#6B8E5A</span></div>
-      <div class="swatch" style="background:#F0F0F5;color:#2a1b2e"><span class="name">礼服灰白</span><span class="hex">#F0F0F5</span></div>
-      <div class="swatch" style="background:#8A6D9B;color:#fdf0fa"><span class="name">礼服紫</span><span class="hex">#8A6D9B</span></div>
-      <div class="swatch" style="background:#D4AF37;color:#2a1b2e"><span class="name">点缀金</span><span class="hex">#D4AF37</span></div>
-    </div>
-    <div class="sect">组件模拟</div>
-    <div class="ui">
-      <div class="row">
-        <div class="btn" style="background:#8A6D9B;color:#fdf0fa">主要按钮</div>
-        <div class="btn" style="background:rgba(138,109,155,.16);color:#c8b8d8;border:1px solid rgba(212,175,55,.38)">次要按钮</div>
-        <div class="chip" style="background:rgba(212,175,55,.12);color:#D4AF37">激活态</div>
-      </div>
-      <div class="card" style="background:rgba(24,18,34,.72);border:1px solid rgba(212,175,55,.22)">
-        <div class="text-primary" style="color:#FDF0FA">主文字 · 知更鸟的歌声</div>
-        <div class="text-dim" style="color:#C8B8D8">次文字 · 淡紫银渐变</div>
-        <div style="color:#9d8fae">三级文字 · 更弱的信息</div>
-        <div class="gold-glow" style="color:#D4AF37;margin-top:6px">✦ 点缀金色高亮 ✦</div>
-      </div>
-    </div>
-  </div>
+  <div class="col" id="colL"></div>
+  <div class="col" id="colR"></div>
 </div>
 
-<div class="note">
-  <b>知更鸟 6 色映射</b>：肤色 #FDF0FA → 主文字 / 发色 #C8B8D8 → 次文字 / 瞳色 #6B8E5A → 主强调·品牌 / 礼服灰白 #F0F0F5 → 对比按钮文字 / 礼服紫 #8A6D9B → 按钮·选中·装饰 / 点缀金 #D4AF37 → 边框·高亮·辉光。<br>
-  流萤配色暂存备份（identity.js / tokens.js 注释块），仅用于对照，目前不启用。
+<div class="note" id="note"></div>
+
+<div class="picker" id="picker">
+  <span class="close" id="pickClose">✕</span>
+  <h4 id="pickTitle">选择颜色</h4>
+  <div class="colors" id="pickColors"></div>
+  <div class="custom">
+    <input type="color" id="pickCustomColor" value="#d4af37">
+    <input type="text" id="pickCustomHex" placeholder="#RRGGBB" maxlength="7">
+  </div>
 </div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ═══════════ 基底池（以后加基底只在此追加对象） ═══════════
+const ROBIN6 = [
+  { name: "肤色",     hex: "#FDF0FA" },
+  { name: "发色",     hex: "#C8B8D8" },
+  { name: "瞳色",     hex: "#6B8E5A" },
+  { name: "礼服灰白", hex: "#F0F0F5" },
+  { name: "礼服紫",   hex: "#8A6D9B" },
+  { name: "点缀金",   hex: "#D4AF37" },
+];
+const BASES = {
+  "robin": {
+    label: "知更鸟（当前基底）",
+    bg: "#100e1c", badge: "新基底", badgeClass: "new",
+    swatches: ROBIN6,
+    // 组件初始样式：{ role, text, style }（style 为 CSS 声明，click 换色时更新 color/background）
+    comps: [
+      { role: "btn-primary", text: "主要按钮", style: "background:#8A6D9B;color:#fdf0fa;border:1px solid rgba(212,175,55,.4)" },
+      { role: "btn-secondary", text: "次要按钮", style: "background:rgba(138,109,155,.16);color:#c8b8d8;border:1px solid rgba(212,175,55,.38)" },
+      { role: "chip-active", text: "激活态", style: "background:rgba(212,175,55,.12);color:#D4AF37" },
+      { role: "text-primary", text: "主文字 · 知更鸟的歌声", style: "color:#FDF0FA" },
+      { role: "text-dim", text: "次文字 · 淡紫银渐变", style: "color:#C8B8D8" },
+      { role: "text-tertiary", text: "三级文字 · 更弱的信息", style: "color:#9d8fae" },
+      { role: "gold-glow", text: "✦ 点缀金色高亮 ✦", style: "color:#D4AF37;text-shadow:0 0 14px rgba(212,175,55,.5)" },
+    ],
+    cardStyle: "background:rgba(24,18,34,.72);border:1px solid rgba(212,175,55,.22)",
+    note: "肤色→主文字 / 发色→次文字 / 瞳色→主强调·品牌 / 礼服灰白→对比按钮文字 / 礼服紫→按钮·选中·装饰 / 点缀金→边框·高亮·辉光",
+  },
+  "firefly": {
+    label: "流萤（暂存对照）",
+    bg: "#0d1420", badge: "暂存（仅对照）", badgeClass: "old",
+    swatches: [
+      { name: "强调绿", hex: "#7dff9e" },
+      { name: "按钮绿", hex: "#00e676" },
+      { name: "主文字", hex: "#eafff3" },
+      { name: "次文字", hex: "#a9c9b9" },
+      { name: "背景",   hex: "#0d1420" },
+      { name: "浮层",   hex: "#16283f" },
+    ],
+    comps: [
+      { role: "btn-primary", text: "主要按钮", style: "background:#00e676;color:#042b11;border:1px solid rgba(0,255,135,.38)" },
+      { role: "btn-secondary", text: "次要按钮", style: "background:rgba(0,230,118,.14);color:#00e676;border:1px solid rgba(0,255,135,.38)" },
+      { role: "chip-active", text: "激活态", style: "background:rgba(0,255,135,.12);color:#7dff9e" },
+      { role: "text-primary", text: "主文字 · 流萤萤火归位", style: "color:#eafff3" },
+      { role: "text-dim", text: "次文字 · 次级信息层级", style: "color:#a9c9b9" },
+      { role: "text-tertiary", text: "三级文字 · 更弱的信息", style: "color:#6f8a7c" },
+      { role: "gold-glow", text: "✦ 萤火金色高亮 ✦", style: "color:#ffd93b;text-shadow:0 0 14px rgba(255,217,59,.5)" },
+    ],
+    cardStyle: "background:rgba(13,21,37,.72);border:1px solid rgba(0,255,135,.22)",
+    note: "深空蓝黑 × 萤火虫青绿（#00ff87 / #7dff9e）× 莹白文字——原基底，2026-09-21 起知更鸟为基底，流萤暂存仅对照",
+  },
+};
+
+// ═══════════ 状态 ═══════════
+const state = { L: { base: "robin", comps: {} }, R: { base: "firefly", comps: {} } };
+// comps: { role: { style, text } }——用户点击换色后记录覆盖
+
+// ═══════════ 工具 ═══════════
+const $ = (id) => document.getElementById(id);
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function withAlpha(hex, alpha) {
+  const c = hexToRgb(hex); if (!c) return hex;
+  return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+}
+function textColorFor(hex) {
+  const c = hexToRgb(hex); if (!c) return "#ffffff";
+  const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  return lum > 150 ? "#1a1420" : "#fdf0fa";
+}
+
+// ═══════════ 渲染单列 ═══════════
+function renderCol(side) {
+  const st = state[side];
+  const base = BASES[st.base];
+  const col = $(side === "L" ? "colL" : "colR");
+  // 恢复初始 comps（未点过的用基底默认；点过的保留覆盖）
+  const comps = {};
+  for (const c of base.comps) {
+    comps[c.role] = st.comps[c.role] || { style: c.style, text: c.text };
+  }
+  st.comps = comps;
+
+  const swatchHtml = base.swatches.map((s) => {
+    const tc = textColorFor(s.hex);
+    return `<div class="swatch" style="background:${s.hex};color:${tc}"><span class="name">${s.name}</span><span class="hex">${s.hex}</span></div>`;
+  }).join("");
+
+  const row1 = [comps["btn-primary"], comps["btn-secondary"], comps["chip-active"]].map((c) =>
+    `<div class="comp btn" data-role="${c.role}" data-side="${side}" style="${c.style}">${c.text}</div>`
+  ).join("");
+  const cardComp = [comps["text-primary"], comps["text-dim"], comps["text-tertiary"], comps["gold-glow"]].map((c) =>
+    `<div class="comp" data-role="${c.role}" data-side="${side}" style="${c.style}${c.role === "gold-glow" ? ";margin-top:6px" : ""}">${c.text}</div>`
+  ).join("");
+
+  col.className = "col";
+  col.style.background = base.bg;
+  col.innerHTML = `
+    <h2>${base.label} <span class="badge ${base.badgeClass}">${base.badge}</span>
+      <span class="hint">点击组件换色</span></h2>
+    <div class="swatches">${swatchHtml}</div>
+    <div class="sect">组件模拟 <span class="tip">（点击任意元素换色）</span></div>
+    <div class="ui">
+      <div class="row">${row1}</div>
+      <div class="card" style="${base.cardStyle}">${cardComp}</div>
+    </div>`;
+  $("note").innerHTML = `<b>${base.label}</b>：${base.note}`;
+}
+
+// ═══════════ 选色器 ═══════════
+let pickTarget = null; // { side, role }
+function openPicker(side, role) {
+  pickTarget = { side, role };
+  const comp = state[side].comps[role];
+  const cur = /#([0-9a-f]{6})/i.exec(comp.style.replace(/rgba?\([^)]*\)/g, ""))?.[0] || "#8A6D9B";
+  $("pickTitle").textContent = `选择颜色 · ${role}（${side} 列）`;
+  const colorsHtml = ROBIN6.map((s) =>
+    `<div class="c ${s.hex.toUpperCase() === String(cur).toUpperCase() ? "active" : ""}" data-hex="${s.hex}" style="background:${s.hex};color:${textColorFor(s.hex)}">${s.name}</div>`
+  ).join("");
+  $("pickColors").innerHTML = colorsHtml;
+  $("pickCustomColor").value = cur;
+  $("pickCustomHex").value = cur.toUpperCase();
+  $("picker").classList.add("open");
+  positionPicker();
+}
+function closePicker() { $("picker").classList.remove("open"); pickTarget = null; }
+function positionPicker() {
+  // 简单居中放置（组件位置复杂，居中即可用）
+  const p = $("picker");
+  p.style.left = "50%"; p.style.top = "40%"; p.style.transform = "translate(-50%, -50%)";
+}
+function applyColor(hex) {
+  if (!pickTarget) return;
+  const { side, role } = pickTarget;
+  const comp = state[side].comps[role];
+  // 对 btn/chip 替换 background；对文字替换 color；gold-glow 同时替换 text-shadow 基色
+  const tc = textColorFor(hex);
+  let style = comp.style;
+  if (/background:/.test(style)) {
+    style = style.replace(/background:[^;]+;?/, `background:${hex};`);
+    if (/color:#/.test(style)) style = style.replace(/color:#[0-9a-fA-F]{6}/, `color:${tc}`);
+  } else {
+    style = style.replace(/color:#[0-9a-fA-F]{6}/, `color:${hex}`);
+  }
+  if (/text-shadow/.test(style) && hexToRgb(hex)) {
+    style = style.replace(/rgba\([^)]*,\s*0\.5\)/, withAlpha(hex, 0.5));
+  }
+  comp.style = style;
+  closePicker();
+  renderCol(side);
+  toast(`已应用 ${hex} → ${role}`);
+}
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+// ═══════════ 事件 ═══════════
+function initSelects() {
+  const opts = Object.keys(BASES).map((id) => `<option value="${id}">${BASES[id].label}</option>`).join("");
+  $("pickL").innerHTML = opts; $("pickR").innerHTML = opts;
+  $("pickL").value = state.L.base; $("pickR").value = state.R.base;
+  $("pickL").addEventListener("change", () => { state.L.base = $("pickL").value; state.L.comps = {}; renderCol("L"); });
+  $("pickR").addEventListener("change", () => { state.R.base = $("pickR").value; state.R.comps = {}; renderCol("R"); });
+}
+document.addEventListener("click", (e) => {
+  const comp = e.target.closest(".comp");
+  if (comp) { openPicker(comp.dataset.side, comp.dataset.role); return; }
+  const color = e.target.closest(".c");
+  if (color) { applyColor(color.dataset.hex); return; }
+  if (!e.target.closest(".picker")) closePicker();
+});
+$("pickClose").addEventListener("click", closePicker);
+$("pickCustomColor").addEventListener("input", (e) => { $("pickCustomHex").value = e.target.value.toUpperCase(); });
+$("pickCustomHex").addEventListener("change", (e) => {
+  const v = e.target.value.trim();
+  if (/^#?[0-9a-fA-F]{6}$/.test(v)) {
+    const hex = (v.startsWith("#") ? v : "#" + v).toUpperCase();
+    $("pickCustomColor").value = hex;
+    applyColor(hex);
+  } else { toast("色值格式错误，需 #RRGGBB"); }
+});
+$("btnReset").addEventListener("click", () => { state.L.comps = {}; state.R.comps = {}; renderCol("L"); renderCol("R"); toast("已重置默认配色"); });
+
+// ═══════════ 导出 CSS（落盘 preview/generated/） ═══════════
+function genCssFor(side) {
+  const st = state[side];
+  const base = BASES[st.base];
+  const name = side === "L" ? "left" : "right";
+  const lines = [`/* ${base.label} — 配色导出（${side} 列） */`, ":root {"];
+  for (const role of Object.keys(st.comps)) {
+    const comp = st.comps[role];
+    const color = /#([0-9a-f]{6})/i.exec(comp.style)?.[0];
+    if (color) lines.push(`  --swatch-${role}: ${color.toUpperCase()};`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+$("btnExport").addEventListener("click", async () => {
+  $("btnExport").disabled = true;
+  const results = [];
+  for (const side of ["L", "R"]) {
+    const st = state[side];
+    const baseId = st.base;
+    const css = genCssFor(side);
+    try {
+      const resp = await fetch("/api/theme-save", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: baseId + "-" + side.toLowerCase(), css }),
+      });
+      const j = await resp.json();
+      results.push(`${j.ok ? "✓" : "✗"} ${j.path || j.error}`);
+    } catch (err) { results.push(`✗ ${side}: ${err.message}`); }
+  }
+  toast("导出完成：" + results.join(" | "));
+  $("btnExport").disabled = false;
+});
+
+// ═══════════ 启动 ═══════════
+initSelects();
+renderCol("L"); renderCol("R");
+</script>
 </body>
 </html>
