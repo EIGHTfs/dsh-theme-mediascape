@@ -43,11 +43,12 @@ const clientPath = path.join(root, "lib", "client.js");
 const { UPLOAD_ACCEPT } = require(path.join(root, "lib", "config.js"));
 
 // ── 1) 开屏动图配置（仅注入 boot.json 的 file 字段，资源本体仍由静态路由提供）──
-// 优先读 GIF/boot.json 的 file 字段（显式配置启动页 gif，运行时 fetch 同源配置）；
+// 优先读 GIF/boot.json 的 file 字段（显式配置启动页素材，运行时 fetch 同源配置）；
+// 支持 .gif/.png（<img>）与 .mp4（<video>）；
 // 无 boot.json / 字段非法 → 回退取目录第一个 .gif（历史行为）。
 const gifDir = path.join(root, "GIF");
 let gifs = [];
-try { gifs = fs.readdirSync(gifDir).filter((f) => /\.gif$/i.test(f)); } catch { gifs = []; }
+try { gifs = fs.readdirSync(gifDir).filter((f) => /\.(gif|png|webp|mp4)$/i.test(f)); } catch { gifs = []; }
 let bootGif = null;
 try {
   const bootPath = path.join(gifDir, "boot.json");
