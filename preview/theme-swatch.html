@@ -16,6 +16,8 @@
   .btn-act { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid rgba(212,175,55,.4); background: rgba(138,109,155,.2); color: #fdf0fa; cursor: pointer; }
   .btn-act:hover { background: rgba(138,109,155,.35); }
   .btn-act:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-apply { padding: 3px 10px; border-radius: 7px; font-size: 11px; border: 1px solid rgba(107,142,90,.55); background: rgba(107,142,90,.2); color: #eafff3; cursor: pointer; font-weight: 600; }
+  .btn-apply:hover { background: rgba(107,142,90,.4); }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
   .col { border-radius: 14px; padding: 18px; border: 1px solid rgba(255,255,255,.08); }
@@ -118,8 +120,11 @@ const BASES = {
 };
 
 // ═══════════ 状态 ═══════════
-const state = { L: { base: "robin", comps: {} }, R: { base: "firefly", comps: {} } };
-// comps: { role: { style, text } }——用户点击换色后记录覆盖
+const state = { L: { base: "robin", comps: {}, bg: null }, R: { base: "firefly", comps: {}, bg: null } };
+// comps: { role: { style, text } }——用户点击换色后记录覆盖；bg: 列背景色（null=用基底默认，点过=覆盖）
+
+// 背景色池（深空系，供「点击列背景循环」）
+const BG_POOL = ["#0d0f1a", "#100e1c", "#0a0c16", "#12102a", "#0e1420", "#141222", "#181228", "#0f1622"];
 
 // ═══════════ 工具 ═══════════
 const $ = (id) => document.getElementById(id);
@@ -166,10 +171,12 @@ function renderCol(side) {
   }).join("");
 
   col.className = "col";
-  col.style.background = base.bg;
+  col.style.background = st.bg || base.bg;
+  col.dataset.side = side;
   col.innerHTML = `
     <h2>${base.label} <span class="badge ${base.badgeClass}">${base.badge}</span>
-      <span class="hint">点击组件循环换色</span></h2>
+      <button class="btn-apply" data-apply="${side}">⬇ 应用此列为正式基底</button>
+      <span class="hint">点组件换色 · 点空白换背景</span></h2>
     <div class="swatches">${swatchHtml}</div>
     <div class="sect">组件模拟 <span class="tip">（点击任意元素循环 6 色）</span></div>
     <div class="ui">
@@ -204,6 +211,50 @@ function cycleColor(side, role) {
   renderCol(side);
   toast(`${ROBIN6[idx].name} ${hex} → ${role}`);
 }
+// 点击列空白 → 循环切换背景色（BG_POOL）
+function cycleBg(side) {
+  const st = state[side];
+  const cur = st.bg || BASES[st.base].bg;
+  let idx = BG_POOL.indexOf(cur.toUpperCase());
+  idx = (idx + 1) % BG_POOL.length;
+  st.bg = BG_POOL[idx];
+  renderCol(side);
+  toast(`背景 ${BG_POOL[idx]} → ${side} 列`);
+}
+// 应用指定列为正式基底：把该列颜色打包（6 色 + bg）POST /api/theme-apply
+async function applyCol(side) {
+  const st = state[side];
+  const base = BASES[st.base];
+  const getHex = (role, fallback) => {
+    const comp = st.comps[role];
+    const m = comp && /#([0-9a-fA-F]{6})/i.exec(comp.style);
+    return (m ? m[1] : fallback).toUpperCase();
+  };
+  // 组件 → 6 色映射（与生成器语义一致）
+  const colors = {
+    bg: (st.bg || base.bg).toUpperCase(),
+    bgSoft: base.bgSoft || "#101020",
+    bgLayer: base.bgLayer || "#161222",
+    skin: getHex("text-primary", "#FDF0FA"),
+    hair: getHex("text-dim", "#C8B8D8"),
+    eye: getHex("btn-primary", "#6B8E5A"),
+    white: getHex("chip-active", "#F0F0F5"),
+    purple: getHex("btn-secondary", "#8A6D9B"),
+    gold: getHex("gold-glow", "#D4AF37"),
+  };
+  const btn = document.querySelector(`[data-apply="${side}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = "应用中…"; }
+  try {
+    const resp = await fetch("/api/theme-apply", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: base.label, colors }),
+    });
+    const j = await resp.json();
+    toast(j.ok ? `✅ 已应用 ${base.label}（${side} 列）为正式基底` : `✗ ${j.error || "应用失败"}`);
+    if (!j.ok) console.error("apply 失败:", j);
+  } catch (err) { toast(`✗ ${err.message}`); }
+  if (btn) { btn.disabled = false; btn.textContent = "⬇ 应用此列为正式基底"; }
+}
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1600);
@@ -218,8 +269,15 @@ function initSelects() {
   $("pickR").addEventListener("change", () => { state.R.base = $("pickR").value; state.R.comps = {}; renderCol("R"); });
 }
 document.addEventListener("click", (e) => {
+  // 应用按钮
+  const applyBtn = e.target.closest(".btn-apply");
+  if (applyBtn) { applyCol(applyBtn.dataset.apply); return; }
+  // 组件换色
   const comp = e.target.closest(".comp");
   if (comp) { cycleColor(comp.dataset.side, comp.dataset.role); return; }
+  // 点击列空白（.col 自身，非内部元素）→ 换背景
+  const col = e.target.closest(".col");
+  if (col && e.target === col) { cycleBg(col.dataset.side); return; }
 });
 $("btnReset").addEventListener("click", () => { state.L.comps = {}; state.R.comps = {}; renderCol("L"); renderCol("R"); toast("已重置默认配色"); });
 

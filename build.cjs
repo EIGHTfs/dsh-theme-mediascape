@@ -5,7 +5,7 @@
  *   - 壁纸（图片/视频）：不内嵌，运行时 GET /theme-mediascape-assets/wallpaper/list 拉取
  *     （真实数据目录 wallpaper/：上传落盘 + 在线下载 online/ 子目录）
  *   - 音乐：不内嵌，运行时 GET /theme-mediascape-assets/music/list 拉取（真实数据目录 music/）
- *   - 开屏 GIF：仅注入 boot.json 配置的 file 文件名（运行时 fetch GIF/boot.json 同源配置）
+ *   - 开屏 GIF：仅注入 boot.json 配置的 file 文件名（运行时 fetch boot/boot.json 同源配置）
  *   - 默认封面：不内嵌（运行时音乐列表带 cover 字段）
  *   - 上传 accept：仍注入 UPLOAD_ACCEPT（由服务端 config.js 派生，单一权威）
  * 资产本体不内联，由服务端（lib/index.js）经 /theme-mediascape-assets/<相对路径> 静态提供。
@@ -43,10 +43,10 @@ const clientPath = path.join(root, "lib", "client.js");
 const { UPLOAD_ACCEPT } = require(path.join(root, "lib", "config.js"));
 
 // ── 1) 开屏动图配置（仅注入 boot.json 的 file 字段，资源本体仍由静态路由提供）──
-// 优先读 GIF/boot.json 的 file 字段（显式配置启动页素材，运行时 fetch 同源配置）；
+// 优先读 boot/boot.json 的 file 字段（显式配置启动页素材，运行时 fetch 同源配置）；
 // 支持 .gif/.png（<img>）与 .mp4（<video>）；
 // 无 boot.json / 字段非法 → 回退取目录第一个 .gif（历史行为）。
-const gifDir = path.join(root, "GIF");
+const gifDir = path.join(root, "boot");
 let gifs = [];
 try { gifs = fs.readdirSync(gifDir).filter((f) => /\.(gif|png|webp|mp4)$/i.test(f)); } catch { gifs = []; }
 let bootGif = null;
@@ -58,7 +58,7 @@ try {
   }
 } catch {}
 if (!bootGif) bootGif = gifs[0] || null;
-const gifUri = bootGif ? "/theme-mediascape-assets/GIF/" + encodeURIComponent(bootGif) : null;
+const gifUri = bootGif ? "/theme-mediascape-assets/boot/" + encodeURIComponent(bootGif) : null;
 console.log(`boot gif: ${bootGif ?? "(无，跳过开屏)"}`);
 
 // ── 2) 注入 ──

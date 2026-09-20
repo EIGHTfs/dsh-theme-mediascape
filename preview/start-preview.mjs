@@ -27,9 +27,146 @@ import { createReadStream, existsSync, statSync, readFileSync, readdirSync, writ
 import { join, normalize, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
+import { execSync } from 'node:child_process';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));       // preview/
 const THEME_ROOT = normalize(join(SCRIPT_DIR, '..'));             // 插件根
+
+// ── 一键应用配色：从 6 色生成 identity.js 基底段 + tokens.js 完整令牌（旧值注释备份，再写盘）──
+// 调用方：对照页「应用为正式基底」→ POST /api/theme-apply { name, colors }
+// colors: { skin, hair, eye, white, purple, gold }（hex，#RRGGBB）
+function hexToRgbStr(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return '0, 0, 0';
+  const n = parseInt(m[1], 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+// 生成 identity.js 的 --ff-theme-* 段（返回替换用字符串：从 html{ 到 }）
+function buildIdentityBlock(colors) {
+  return [
+    '"html { color-scheme: dark !important; background: rgb(var(--ff-theme-bg)) !important;",',
+    '"  /* ── 基底主题变量（壁纸联动皮肤命名空间 --ff-theme-*；值=一键应用配色，动态取色覆盖）── */",',
+    `"  /* 一键应用 ${colors._name || ''}：肤色 ${colors.skin} / 发色 ${colors.hair} / 瞳色 ${colors.eye} / 礼服灰白 ${colors.white} / 礼服紫 ${colors.purple} / 点缀金 ${colors.gold} */",`,
+    `"  --ff-theme-bg: ${hexToRgbStr(colors.bg || '#0a0c16')};",`,
+    `"  --ff-theme-bg-soft: ${hexToRgbStr(colors.bgSoft || '#101020')};",`,
+    `"  --ff-theme-bg-layer: ${hexToRgbStr(colors.bgLayer || '#161222')};",`,
+    `"  --ff-theme-accent: ${hexToRgbStr(colors.eye)};",`,
+    `"  --ff-theme-accent-soft: ${hexToRgbStr(colors.purple)};",`,
+    `"  --ff-theme-text: ${hexToRgbStr(colors.skin)};",`,
+    `"  --ff-theme-text-dim: ${hexToRgbStr(colors.hair)};",`,
+    `"  --ff-theme-border: ${hexToRgbStr(colors.gold)};",`,
+    '"}",',
+  ].join('\n');
+}
+// 生成 tokens.js 完整内容（TOKENS 全部由 6 色推导）
+function buildTokensContent(colors) {
+  const { skin, hair, eye, white, purple, gold } = colors;
+  const E = eye, P = purple, G = gold, S = skin, H = hair, W = white;
+  const rgba = (hex, a) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex); if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  };
+  const lines = [
+    '// ═══════════ 1. 设计令牌层：一键应用配色 ═══════════',
+    `// ${colors._name || '自定义'}：肤色 ${S} / 发色 ${H} / 瞳色 ${E} / 礼服灰白 ${W} / 礼服紫 ${P} / 点缀金 ${G}`,
+    '// ⚠️ 本文件由「配色对照页 → 应用为正式基底」自动生成，手动修改会被覆盖；留痕见 preview/generated/',
+    'const TOKENS = {',
+    '  // 背景：半透明深空夜空（让壁纸透出来；bg-base 是根容器，要最透明）',
+    '  "--dsw-alias-bg-base": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.30)) + ',',
+    '  "--dsw-alias-bg-layer-1": ' + JSON.stringify(rgba(colors.bgSoft || '#101020', 0.52)) + ',',
+    '  "--dsw-alias-bg-layer-2": ' + JSON.stringify(rgba(colors.bgLayer || '#161222', 0.72)) + ',',
+    '  "--dsw-alias-bg-layer-3": ' + JSON.stringify(rgba(colors.bgLayer || '#161222', 0.80)) + ',',
+    '  "--dsw-alias-bg-overlay": ' + JSON.stringify(rgba(colors.bgLayer || '#161222', 0.92)) + ',',
+    '  "--dsw-alias-bg-module-platform": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.84)) + ',',
+    '  "--dsw-alias-bg-multi-select": ' + JSON.stringify(rgba(colors.bgLayer || '#161222', 0.90)) + ',',
+    '  "--dsw-alias-bg-skeleton": ' + JSON.stringify(rgba(E, 0.12)) + ',',
+    '  "--dsw-alias-bg-mask-1": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.72)) + ',',
+    '  "--dsw-alias-bg-mask-2": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.40)) + ',',
+    '  "--dsw-alias-bg-mask-drop": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.72)) + ',',
+    '',
+    '  // 文字：肤色（主）/ 金色（次）/ 发色（三）',
+    '  "--dsw-alias-label-primary": ' + JSON.stringify(S) + ',',
+    '  "--dsw-alias-label-secondary": ' + JSON.stringify(G) + ',',
+    '  "--dsw-alias-label-tertiary": ' + JSON.stringify(H) + ',',
+    '  "--dsw-alias-label-caption": ' + JSON.stringify(H) + ',',
+    '  "--dsw-alias-label-dimmed": ' + JSON.stringify(rgba(H, 0.55)) + ',',
+    '  "--dsw-alias-label-primary-foreground": ' + JSON.stringify('#2a1b2e') + ',',
+    '  "--dsw-alias-label-primary-inverted": ' + JSON.stringify('#2a1b2e') + ',',
+    '',
+    '  // 品牌：瞳色绿（知更鸟之绿）',
+    '  "--dsw-alias-brand-primary": ' + JSON.stringify(E) + ',',
+    '  "--dsw-alias-brand-text": ' + JSON.stringify(E) + ',',
+    '  "--dsw-alias-brand-primary-invert": ' + JSON.stringify(W) + ',',
+    '',
+    '  // 按钮：瞳色绿主填充（礼服紫为 hover/装饰）',
+    '  "--dsw-alias-button-primary-fill": ' + JSON.stringify(E) + ',',
+    '  "--dsw-alias-button-primary-hover": ' + JSON.stringify(P) + ',',
+    '  "--dsw-alias-button-primary-dimmed": ' + JSON.stringify(rgba(E, 0.18)) + ',',
+    '  "--dsw-alias-button-contrast-fill": ' + JSON.stringify(S) + ',',
+    '  "--dsw-alias-button-elevated-fill": ' + JSON.stringify('#1c1626') + ',',
+    '  "--dsw-alias-button-floating-fill": ' + JSON.stringify('#181222') + ',',
+    '  "--dsw-alias-button-floating-hover": ' + JSON.stringify('#241c30') + ',',
+    '  "--dsw-alias-button-ghost-active-fill": ' + JSON.stringify('#201a2c') + ',',
+    '  "--dsw-alias-button-ghost-active-hover": ' + JSON.stringify('#2c2440') + ',',
+    '  "--dsw-alias-button-info-fill": ' + JSON.stringify(E) + ',',
+    '  "--dsw-alias-button-info-hover": ' + JSON.stringify(P) + ',',
+    '  "--dsw-alias-button-tool-bar-fill": ' + JSON.stringify(rgba(E, 0.16)) + ',',
+    '  "--dsw-alias-button-tool-bar-hover": ' + JSON.stringify(rgba(P, 0.26)) + ',',
+    '  "--dsw-alias-button-ghost-active-border": ' + JSON.stringify(G) + ',',
+    '',
+    '  // 交互：瞳色绿（hover/active）',
+    '  "--dsw-alias-interactive-bg-hover": ' + JSON.stringify(rgba(E, 0.10)) + ',',
+    '  "--dsw-alias-interactive-bg-active": ' + JSON.stringify(rgba(E, 0.18)) + ',',
+    '  "--dsw-alias-interactive-bg-hover-accent": ' + JSON.stringify(rgba(E, 0.15)) + ',',
+    '  "--dsw-alias-interactive-bg-hover-danger": ' + JSON.stringify(rgba(255, 93, 122, 0.15)) + ',',
+    '',
+    '  // 边框：点缀金（低透明度）',
+    '  "--dsw-alias-border-l1": ' + JSON.stringify(rgba(G, 0.13)) + ',',
+    '  "--dsw-alias-border-l2": ' + JSON.stringify(rgba(G, 0.22)) + ',',
+    '  "--dsw-alias-border-l2-darkmode-thin": ' + JSON.stringify(rgba(G, 0.10)) + ',',
+    '  "--dsw-alias-border-l3": ' + JSON.stringify(rgba(G, 0.25)) + ',',
+    '  "--dsw-alias-border-l4": ' + JSON.stringify(rgba(G, 0.38)) + ',',
+    '',
+    '  // 状态：success=瞳色绿 / error 保留 / warn=点缀金 / business=瞳色绿',
+    '  "--dsw-alias-state-success-primary": ' + JSON.stringify(E) + ',',
+    '  "--dsw-alias-state-success-secondary": ' + JSON.stringify(rgba(E, 0.16)) + ',',
+    '  "--dsw-alias-state-success-tertiary": ' + JSON.stringify(rgba(E, 0.08)) + ',',
+    '  "--dsw-alias-state-error-primary": ' + JSON.stringify('#ff5d7a') + ',',
+    '  "--dsw-alias-state-error-secondary": ' + JSON.stringify('rgba(255, 93, 122, 0.16)') + ',',
+    '  "--dsw-alias-state-warn-primary": ' + JSON.stringify(G) + ',',
+    '  "--dsw-alias-state-warn-secondary": ' + JSON.stringify(rgba(G, 0.16)) + ',',
+    '  "--dsw-alias-state-business-primary": ' + JSON.stringify(E) + ',',
+    '  "--dsw-alias-state-business-tertiary": ' + JSON.stringify(rgba(E, 0.10)) + ',',
+    '',
+    '  // toast / tooltip / markdown / 滚动条（深空夜空底 + 金/紫强调）',
+    '  "--dsw-alias-toast-bg": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.92)) + ',',
+    '  "--dsw-alias-tooltip-bg": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.95)) + ',',
+    '  "--dsw-alias-markdown-inline-code": ' + JSON.stringify(rgba(G, 0.12)) + ',',
+    '  "--dsw-alias-markdown-code-block": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.70)) + ',',
+    '  "--dsw-alias-markdown-code-block-banner": ' + JSON.stringify(rgba(G, 0.06)) + ',',
+    '  "--dsw-alias-scrollbar-bg-l1": ' + JSON.stringify(rgba(G, 0.15)) + ',',
+    '  "--dsw-alias-scrollbar-bg-l2": ' + JSON.stringify(rgba(G, 0.22)) + ',',
+    '  "--dsw-alias-scrollbar-hover-l1": ' + JSON.stringify(rgba(G, 0.30)) + ',',
+    '  "--dsw-alias-scrollbar-hover-l2": ' + JSON.stringify(rgba(G, 0.42)) + ',',
+    '',
+    '  // 组件特化：侧栏激活=瞳色绿（与主按钮一致）/ 高亮=金',
+    '  "--dsw-specific-sidebar-fill": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.88)) + ',',
+    '  "--dsw-specific-sidebar-nav-item-active": ' + JSON.stringify(rgba(E, 0.16)) + ',',
+    '  "--dsw-specific-sidebar-nav-item-active-accent": ' + JSON.stringify(E) + ',',
+    '  "--dsw-specific-sidebar-nav-item-hover": ' + JSON.stringify(rgba(E, 0.08)) + ',',
+    '  "--dsw-specific-bubble": ' + JSON.stringify(rgba('#141022', 0.88)) + ',',
+    '  "--dsw-specific-bubble-highlight": ' + JSON.stringify(rgba(G, 0.08)) + ',',
+    '  "--dsw-specific-input-major": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.85)) + ',',
+    '  "--dsw-specific-menu": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.94)) + ',',
+    '  "--dsw-specific-selector": ' + JSON.stringify(rgba(colors.bgSoft || '#101020', 0.90)) + ',',
+    '  "--dsw-specific-tip": ' + JSON.stringify(rgba(G, 0.10)) + ',',
+    '};',
+  ];
+  return lines.join('\n');
+}
+
+
 
 // ── 可配置项 ──
 const DSH_BASE = process.env.DSH_PREVIEW_TARGET || 'http://127.0.0.1:30800'; // DSH 反代
@@ -287,12 +424,12 @@ function handleMusicListLocal(res) {
   }
 }
 
-/** 本地服务插件根目录下的静态素材（GIF/、music/）。 */
+/** 本地服务插件根目录下的静态素材（boot/、music/）。 */
 function serveAssetLocal(res, pathname) {
-  const rel = pathname.replace(/^\/theme-mediascape-assets\//, '');   // GIF/xxx...
+  const rel = pathname.replace(/^\/theme-mediascape-assets\//, '');   // boot/xxx...
   const top = rel.split('/')[0];
-  if (top !== 'GIF' && top !== 'music') { send(res, 404, 'not found'); return; }
-  // music/ → 真实数据目录（音乐本体+封面）；GIF/ → 插件根
+  if (top !== 'boot' && top !== 'music') { send(res, 404, 'not found'); return; }
+  // music/ → 真实数据目录（音乐本体+封面）；boot/ → 插件根
   const base = top === 'music' ? musicDir() : THEME_ROOT;
   const file = normalize(join(base, top === 'music' ? rel.slice('music/'.length) : rel));
   if (!file.startsWith(normalize(join(base, '')))) { send(res, 403, 'forbidden'); return; }
@@ -345,6 +482,55 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // 一键应用配色为正式基底：POST { name, colors } → 生成 identity.js + tokens.js（旧值备份）+ build
+  if (req.method === 'POST' && pathname === '/api/theme-apply') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 512 * 1024) { req.destroy(); } });
+    req.on('end', () => {
+      try {
+        const body = JSON.parse(raw || '{}');
+        const name = String(body.name || '配色').replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, '').slice(0, 40);
+        const colors = Object.assign({}, body.colors || {});
+        colors._name = name;
+        const req6 = ['skin', 'hair', 'eye', 'white', 'purple', 'gold'];
+        for (const k of req6) if (!/^#?[0-9a-f]{6}$/i.test(String(colors[k] || ''))) {
+          send(res, 400, JSON.stringify({ ok: false, error: `缺/非法色值 ${k}` }), 'application/json'); return;
+        }
+        // 备份旧值到 preview/generated/backup-<ts>/（可恢复，不进 git）
+        const ts = Date.now();
+        const bkDir = join(SCRIPT_DIR, 'generated', 'backup-' + ts);
+        mkdirSync(bkDir, { recursive: true });
+        const idFile = join(THEME_ROOT, 'lib/client-parts/scenes/identity.js');
+        const tkFile = join(THEME_ROOT, 'lib/client-parts/foundation/tokens.js');
+        writeFileSync(join(bkDir, 'identity.js'), readFileSync(idFile, 'utf8'), 'utf8');
+        writeFileSync(join(bkDir, 'tokens.js'), readFileSync(tkFile, 'utf8'), 'utf8');
+        // 写 identity.js：把 html{ ... } 块替换为新块
+        let idSrc = readFileSync(idFile, 'utf8');
+        idSrc = idSrc.replace(/"html \{ color-scheme[\s\S]*?"\}",/m, () => buildIdentityBlock(colors) + ',');
+        writeFileSync(idFile, idSrc, 'utf8');
+        // 写 tokens.js：整体替换 TOKENS 块
+        let tkSrc = readFileSync(tkFile, 'utf8');
+        tkSrc = tkSrc.replace(/const TOKENS = \{[\s\S]*?\};/, () => buildTokensContent(colors));
+        writeFileSync(tkFile, tkSrc, 'utf8');
+        // build（node 在目标 bin；失败不致命，记录）
+        let buildOut = '';
+        try {
+          buildOut = execSync(`PATH="/var/packages/DeepSeekHarness-NAS/target/bin:$PATH" node build.cjs`, {
+            cwd: THEME_ROOT, encoding: 'utf8', timeout: 60000,
+          }).trim();
+        } catch (e) { buildOut = 'BUILD_FAIL: ' + (e.stderr || e.message); }
+        console.log(`[theme-apply] ${name} → identity.js+tokens.js 已改写，备份 ${bkDir}`);
+        send(res, 200, JSON.stringify({
+          ok: true, name, backup: bkDir, build: buildOut,
+          identity: idSrc.length, tokens: tkSrc.length,
+        }), 'application/json');
+      } catch (e) {
+        send(res, 500, JSON.stringify({ ok: false, error: e.message }), 'application/json');
+      }
+    });
+    return;
+  }
+
   // /generated/* → 导出的配色 CSS（GET 供对照页回读/展示）
   if (req.method === 'GET' && pathname.startsWith('/generated/')) {
     const file = normalize(join(SCRIPT_DIR, pathname.replace(/^\/generated\//, 'generated/')));
@@ -378,8 +564,8 @@ const server = createServer((req, res) => {
       handleMusicListLocal(res);
       return;
     }
-    // 静态素材（GIF/ music/）本地直供（music/ → 真实数据目录）
-    if (req.method === 'GET' && /^\/theme-mediascape-assets\/(GIF|music)\//.test(pathname)) {
+    // 静态素材（boot/ music/）本地直供（music/ → 真实数据目录）
+    if (req.method === 'GET' && /^\/theme-mediascape-assets\/(boot|music)\//.test(pathname)) {
       console.log('[local] asset GET', pathname);
       serveAssetLocal(res, pathname);
       return;
