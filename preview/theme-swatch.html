@@ -30,7 +30,8 @@
   .swatch .hex { font-family: 'SF Mono', Consolas, monospace; opacity: .85; }
   .sect { font-size: 12px; color: #8a86a0; margin: 14px 0 8px; letter-spacing: 2px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
   .sect .tip { font-size: 11px; letter-spacing: 0; color: #6e6478; text-transform: none; }
-  .ui { display: flex; flex-direction: column; gap: 10px; }
+  .ui { display: flex; gap: 12px; align-items: stretch; }
+  .ui-left { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
   .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .comp { border-radius: 8px; cursor: pointer; transition: transform .08s; position: relative; }
   .comp:hover { outline: 2px dashed rgba(212,175,55,.5); outline-offset: 2px; }
@@ -38,6 +39,18 @@
   .btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid transparent; }
   .chip { padding: 4px 12px; border-radius: 999px; font-size: 12px; }
   .card { border-radius: 12px; padding: 14px; font-size: 13px; line-height: 1.7; }
+  /* 背景切换空块：竖排放在组件区（激活态+三文字整体）右侧的大片空白处 */
+  .bg-block {
+    width: 92px; flex: none; align-self: stretch;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 2px dashed rgba(212,175,55,.35); border-radius: 12px;
+    background: rgba(255,255,255,.03); color: rgba(253,240,250,.55);
+    font-size: 11px; letter-spacing: 2px; cursor: pointer; user-select: none;
+    transition: background .15s, border-color .15s;
+  }
+  .bg-block:hover { background: rgba(212,175,55,.1); border-color: rgba(212,175,55,.65); color: rgba(253,240,250,.9); }
+  .bg-block:active { transform: scale(.97); }
+  .bg-block .bg-dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(253,240,250,.35); }
   .text-primary { font-size: 14px; }
   .text-dim { font-size: 13px; }
   .note { margin-top: 22px; font-size: 12px; color: #8a86a0; line-height: 1.8; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
@@ -94,6 +107,30 @@ const BASES = {
     cardStyle: "background:rgba(24,18,34,.72);border:1px solid rgba(212,175,55,.22)",
     note: "肤色→主文字 / 发色→次文字 / 瞳色→主强调·品牌 / 礼服灰白→对比按钮文字 / 礼服紫→按钮·选中·装饰 / 点缀金→边框·高亮·辉光",
   },
+  "robin-bright": {
+    label: "知更鸟·提亮（当前正式基底）",
+    bg: "#0d0f1a", bgSoft: "#151230", bgLayer: "#1b1636", badge: "提亮", badgeClass: "new",
+    swatches: [
+      { name: "肤色", hex: "#FDF0FA" },
+      { name: "发色", hex: "#E2D8EC" },
+      { name: "瞳色", hex: "#7EA36C" },
+      { name: "礼服灰白", hex: "#F0F0F5" },
+      { name: "礼服紫", hex: "#A78BC0" },
+      { name: "点缀金", hex: "#E8C04A" },
+    ],
+    // 提亮：主按钮=提亮瞳色绿、次要=提亮紫、激活=提亮金、次文字=提亮发色、三级=提亮发色弱化、高亮=提亮金
+    comps: [
+      { role: "btn-primary", text: "主要按钮", style: "background:#7EA36C;color:#101410;border:1px solid rgba(232,192,74,.45)" },
+      { role: "btn-secondary", text: "次要按钮", style: "background:rgba(167,139,192,.2);color:#E2D8EC;border:1px solid rgba(232,192,74,.42)" },
+      { role: "chip-active", text: "激活态", style: "background:rgba(232,192,74,.14);color:#E8C04A" },
+      { role: "text-primary", text: "主文字 · 知更鸟的歌声", style: "color:#FDF0FA" },
+      { role: "text-dim", text: "次文字 · 淡紫银提亮", style: "color:#E2D8EC" },
+      { role: "text-tertiary", text: "三级文字 · 更弱的信息", style: "color:#C0B0D2" },
+      { role: "gold-glow", text: "✦ 点缀金色高亮 ✦", style: "color:#E8C04A;text-shadow:0 0 14px rgba(232,192,74,.55)" },
+    ],
+    cardStyle: "background:rgba(27,22,54,.72);border:1px solid rgba(232,192,74,.26)",
+    note: "知更鸟 6 色整体提亮提饱和（对照页一键应用生成）：瞳色绿 #7EA36C / 礼服紫 #A78BC0 / 发色 #E2D8EC / 点缀金 #E8C04A，保持 6 色身份更接近流萤高亮感",
+  },
   "firefly": {
     label: "流萤（暂存对照）",
     bg: "#0d1420", badge: "暂存（仅对照）", badgeClass: "old",
@@ -120,7 +157,7 @@ const BASES = {
 };
 
 // ═══════════ 状态 ═══════════
-const state = { L: { base: "robin", comps: {}, bg: null }, R: { base: "firefly", comps: {}, bg: null } };
+const state = { L: { base: "robin-bright", comps: {}, bg: null }, R: { base: "firefly", comps: {}, bg: null } };
 // comps: { role: { style, text } }——用户点击换色后记录覆盖；bg: 列背景色（null=用基底默认，点过=覆盖）
 
 // 背景色池（深空系，供「点击列背景循环」）
@@ -180,8 +217,15 @@ function renderCol(side) {
     <div class="swatches">${swatchHtml}</div>
     <div class="sect">组件模拟 <span class="tip">（点击任意元素循环 6 色）</span></div>
     <div class="ui">
-      <div class="row">${row1}</div>
-      <div class="card" style="${base.cardStyle}">${cardComp}</div>
+      <div class="ui-left">
+        <div class="row">${row1}</div>
+        <div class="card" style="${base.cardStyle}">${cardComp}</div>
+      </div>
+      <div class="bg-block" data-role="bg" data-side="${side}" title="点击循环换背景">
+        <div class="bg-dot" style="background:${st.bg || base.bg}"></div>
+        <span>背景</span>
+        <span style="font-size:10px;letter-spacing:0;opacity:.7">点击循环</span>
+      </div>
     </div>`;
   $("note").innerHTML = `<b>${base.label}</b>：${base.note}`;
 }
@@ -214,14 +258,13 @@ function cycleColor(side, role) {
 // 点击列空白 → 循环切换背景色（BG_POOL）
 function cycleBg(side) {
   const st = state[side];
-  const cur = st.bg || BASES[st.base].bg;
-  let idx = BG_POOL.indexOf(cur.toUpperCase());
+  const cur = (st.bg || BASES[st.base].bg).toLowerCase();
+  let idx = BG_POOL.indexOf(cur);
   idx = (idx + 1) % BG_POOL.length;
   st.bg = BG_POOL[idx];
   renderCol(side);
   toast(`背景 ${BG_POOL[idx]} → ${side} 列`);
-}
-// 应用指定列为正式基底：把该列颜色打包（6 色 + bg）POST /api/theme-apply
+}// 应用指定列为正式基底：把该列颜色打包（6 色 + bg）POST /api/theme-apply
 async function applyCol(side) {
   const st = state[side];
   const base = BASES[st.base];
@@ -272,6 +315,9 @@ document.addEventListener("click", (e) => {
   // 应用按钮
   const applyBtn = e.target.closest(".btn-apply");
   if (applyBtn) { applyCol(applyBtn.dataset.apply); return; }
+  // 背景切换空块（组件区右侧）
+  const bgBlock = e.target.closest(".bg-block");
+  if (bgBlock) { cycleBg(bgBlock.dataset.side); return; }
   // 组件换色
   const comp = e.target.closest(".comp");
   if (comp) { cycleColor(comp.dataset.side, comp.dataset.role); return; }
