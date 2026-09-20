@@ -45,10 +45,21 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
   - **默认壁纸**：首次安装（无历史记录）时展示真实数据目录里的第一张壁纸（本地/在线均可）
   - 选择面板点右上角「**—**」或再点「选择」收起；点「**确定**」收起设置面板，所有设置实时生效并持久化
 
-### 流萤配色
+### 知更鸟配色（基底）
 
-- 深空海军蓝黑 × 萤火虫青绿（`#00ff87` / `#7dff9e`）× 莹白文字
+- 知更鸟 6 色全映射（肤色→主文字 / 发色→次文字 / 瞳色→主强调·品牌 / 礼服灰白→对比按钮文字 / 礼服紫→按钮·选中·装饰 / 点缀金→边框·高亮·辉光）：
+
+  | 元素 | 色号 | 映射用途 |
+  |------|------|----------|
+  | 肤色 | `#FDF0FA` | 主文字 |
+  | 发色 | `#C8B8D8` | 次级文字 |
+  | 瞳色 | `#6B8E5A` | 主强调 / 品牌 |
+  | 服装-灰白 | `#F0F0F5` | 对比按钮文字 |
+  | 服装-紫色 | `#8A6D9B` | 按钮 / 选中 / 装饰 |
+  | 点缀-金色 | `#D4AF37` | 边框 / 高亮 / 辉光 |
+
 - 覆盖 100+ 个 `--dsw-*` 设计令牌，随主题即时生效
+- **流萤配色暂存备份**（深空蓝黑 × 萤火绿，原值注释保留在 `identity.js`/`tokens.js`，当前不启用）：双配色对照见 `preview/theme-swatch.html`（预览服务器 `/theme-swatch.html`）
 
 ### 开屏变身动画
 
@@ -313,7 +324,7 @@ dsh plugin --profile web remove dsh-theme-mediascape
 
 | 版本 | 说明 |
 |---|---|
-| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录复制映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录复制**到 `$DSH_HOME/theme-mediascape/`（仓库根保留不删源，只复制一次，目标已存在非空即跳过；link 安装下工作区素材不被搬空）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单，`/music/list` 每次调用自动同步目录实际内容回写清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；**启动画面支持视频**（`.mp4` 用 `<video muted loop autoplay>`，默认知更鸟 PV 前 6 秒 `robin-6s.mp4`；标题/副标题改可配置变量 `title`/`sub` 默认空；`durationMs` 默认 3000 约 3 秒一循环）；**「乐」按钮状态机**（亮=播放/暗=暂停；面板关点乐→开面板+播放，面板开播放中点乐→暂停且面板不关，点外关面板不碰播放）；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
+| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录复制映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录复制**到 `$DSH_HOME/theme-mediascape/`（仓库根保留不删源，只复制一次，目标已存在非空即跳过；link 安装下工作区素材不被搬空）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单，`/music/list` 每次调用自动同步目录实际内容回写清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；**启动画面支持视频**（`.mp4` 用 `<video muted loop autoplay>`，默认知更鸟 PV 前 6 秒 `robin-6s.mp4`；标题/副标题改可配置变量 `title`/`sub` 默认空；`durationMs` 默认 3000 约 3 秒一循环）；**「乐」按钮状态机**（亮=播放/暗=暂停；面板关点乐→开面板+播放，面板开播放中点乐→暂停且面板不关，点外关面板不碰播放）；**基底配色改知更鸟 6 色**（肤色→主文字、发色→次文字、瞳色→主强调、礼服灰白→对比按钮文字、礼服紫→按钮/选中、点缀金→边框/高亮，`--ff-theme-*` 与 `--dsw-*` 全量替换；原流萤配色注释备份暂存仅对照，对照页 `preview/theme-swatch.html`）；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
 | 1.0.3 | 壁纸主题自动配色（**入口暂注释，保留原配色**；基底变量/取色模块架构就位，后续恢复 `render()` 内一行调用即启用）：identity.js 硬编码色 152 处抽离为基底 CSS 变量引用（`var(--ff-theme-x, 基底值)`，基底值=原流萤色，视觉零变化）；新增 theme.js 取色模块（canvas 降采样+量化+HSL 调优，SHA-1 id 缓存、seq 并发守卫、视频不触发）；上传落盘改 SHA-1 hash 名 + `.labels.json` 存显示名（json 兼具重复文件判断，同内容复用仅更新显示名）；accept 复用 config.js（`UPLOAD_ACCEPT` 派生，`GET /config` 端点单一权威）；占位符去 FIREFLY 旧名前缀（`__BG_MANIFEST_`/`__UPLOAD_ACCEPT_` 等） |
 | 1.0.2 | 服务端模块拆分：`lib/index.js`（526 行）按职责拆为 6 模块（config 配置 / paths 路径 / labels 映射 / online 在线下载 / handlers 处理器 / index 入口），对外导出面与行为不变（等价比对逐字节一致）；labels 缓存状态收敛到所属模块（修复 ESM 跨模块赋值只读限制）；拆分回归验证脚本入库（`preview/tests/ms-split-behavior-check.mjs`、`ms-split-equivalence.mjs`）；浏览器端模板拆分：`lib/client.template.js`（2147 行）按职责拆为 `lib/client-parts/` 5 子目录 17 片段（foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件 + apply 入口，build 按 PART_ORDER 拼接回单文件，产物与拆分前逐字节一致） |
 | 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |

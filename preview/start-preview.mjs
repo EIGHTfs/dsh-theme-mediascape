@@ -319,6 +319,9 @@ const server = createServer((req, res) => {
   // 根 → 预览页
   if (pathname === '/' || pathname === '/index.html') { serveFile(res, join(SCRIPT_DIR, 'preview.html')); return; }
 
+  // 配色对照页（流萤 vs 知更鸟，静态对照用）
+  if (pathname === '/theme-swatch.html') { serveFile(res, join(SCRIPT_DIR, 'theme-swatch.html')); return; }
+
   // /lib/* → 插件根 lib/（preview.html 里 ../lib/client.js 在 HTTP 下规范化为 /lib/client.js）
   if (pathname.startsWith('/lib/')) {
     const file = normalize(join(THEME_ROOT, pathname.replace(/^\/lib\//, 'lib/')));

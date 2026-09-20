@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>主题配色对照 · 流萤 vs 知更鸟</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0a0a12; color: #e8e6f0; padding: 28px; }
+  h1 { font-size: 22px; margin-bottom: 6px; letter-spacing: 1px; }
+  .sub { font-size: 13px; color: #8a86a0; margin-bottom: 22px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .col { border-radius: 14px; padding: 18px; border: 1px solid rgba(255,255,255,.08); }
+  .col.old { background: #0d1420; }           /* 流萤深空蓝黑 */
+  .col.new { background: #100e1c; }           /* 知更鸟深紫夜空 */
+  .col h2 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .badge.old { background: rgba(0,255,135,.15); color: #7dff9e; }
+  .badge.new { background: rgba(212,175,55,.15); color: #d4af37; }
+  .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .swatch { border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; min-height: 46px; }
+  .swatch .name { font-weight: 600; }
+  .swatch .hex { font-family: 'SF Mono', Consolas, monospace; opacity: .85; }
+  .swatch.dark-text { color: #0b0b12; }
+  .sect { font-size: 12px; color: #8a86a0; margin: 14px 0 8px; letter-spacing: 2px; text-transform: uppercase; }
+  .ui { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid transparent; cursor: default; }
+  .chip { padding: 4px 12px; border-radius: 999px; font-size: 12px; }
+  .card { border-radius: 12px; padding: 14px; font-size: 13px; line-height: 1.7; }
+  .text-primary { font-size: 14px; }
+  .text-dim { font-size: 13px; }
+  .gold-glow { text-shadow: 0 0 14px rgba(212,175,55,.5); }
+  .note { margin-top: 22px; font-size: 12px; color: #8a86a0; line-height: 1.8; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+</style>
+</head>
+<body>
+<h1>🎨 dsh-theme-mediascape · 配色对照</h1>
+<div class="sub">左 = 流萤（旧基底，暂存仅对照） · 右 = 知更鸟（新基底，当前启用）—— 知更鸟 6 色全映射</div>
+
+<div class="cols">
+  <!-- ═════════ 流萤（旧） ═════════ -->
+  <div class="col old">
+    <h2>流萤 · 深空蓝黑 × 萤火绿 <span class="badge old">暂存（仅对照）</span></h2>
+    <div class="swatches">
+      <div class="swatch" style="background:#7dff9e;color:#06240f"><span class="name">强调绿</span><span class="hex">#7dff9e</span></div>
+      <div class="swatch" style="background:#00e676;color:#042b11"><span class="name">按钮绿</span><span class="hex">#00e676</span></div>
+      <div class="swatch" style="background:#eafff3;color:#06240f"><span class="name">主文字</span><span class="hex">#eafff3</span></div>
+      <div class="swatch" style="background:#a9c9b9;color:#0b1f15"><span class="name">次文字</span><span class="hex">#a9c9b9</span></div>
+      <div class="swatch" style="background:#0d1420;color:#eafff3"><span class="name">背景</span><span class="hex">#0d1420</span></div>
+      <div class="swatch" style="background:#16283f;color:#eafff3"><span class="name">浮层</span><span class="hex">#16283f</span></div>
+    </div>
+    <div class="sect">组件模拟</div>
+    <div class="ui">
+      <div class="row">
+        <div class="btn" style="background:#00e676;color:#042b11">主要按钮</div>
+        <div class="btn" style="background:rgba(0,230,118,.14);color:#00e676;border:1px solid rgba(0,255,135,.38)">次要按钮</div>
+        <div class="chip" style="background:rgba(0,255,135,.12);color:#7dff9e">激活态</div>
+      </div>
+      <div class="card" style="background:rgba(13,21,37,.72);border:1px solid rgba(0,255,135,.22)">
+        <div class="text-primary" style="color:#eafff3">主文字 · 流萤萤火归位</div>
+        <div class="text-dim" style="color:#a9c9b9">次文字 · 次级信息层级</div>
+        <div style="color:#6f8a7c">三级文字 · 更弱的信息</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ 知更鸟（新） ═════════ -->
+  <div class="col new">
+    <h2>知更鸟 · 深紫夜空 × 6 色 <span class="badge new">新基底（当前启用）</span></h2>
+    <div class="swatches">
+      <div class="swatch" style="background:#FDF0FA;color:#2a1b2e"><span class="name">肤色</span><span class="hex">#FDF0FA</span></div>
+      <div class="swatch" style="background:#C8B8D8;color:#2a1b2e"><span class="name">发色</span><span class="hex">#C8B8D8</span></div>
+      <div class="swatch" style="background:#6B8E5A;color:#f0f0f5"><span class="name">瞳色</span><span class="hex">#6B8E5A</span></div>
+      <div class="swatch" style="background:#F0F0F5;color:#2a1b2e"><span class="name">礼服灰白</span><span class="hex">#F0F0F5</span></div>
+      <div class="swatch" style="background:#8A6D9B;color:#fdf0fa"><span class="name">礼服紫</span><span class="hex">#8A6D9B</span></div>
+      <div class="swatch" style="background:#D4AF37;color:#2a1b2e"><span class="name">点缀金</span><span class="hex">#D4AF37</span></div>
+    </div>
+    <div class="sect">组件模拟</div>
+    <div class="ui">
+      <div class="row">
+        <div class="btn" style="background:#8A6D9B;color:#fdf0fa">主要按钮</div>
+        <div class="btn" style="background:rgba(138,109,155,.16);color:#c8b8d8;border:1px solid rgba(212,175,55,.38)">次要按钮</div>
+        <div class="chip" style="background:rgba(212,175,55,.12);color:#D4AF37">激活态</div>
+      </div>
+      <div class="card" style="background:rgba(24,18,34,.72);border:1px solid rgba(212,175,55,.22)">
+        <div class="text-primary" style="color:#FDF0FA">主文字 · 知更鸟的歌声</div>
+        <div class="text-dim" style="color:#C8B8D8">次文字 · 淡紫银渐变</div>
+        <div style="color:#9d8fae">三级文字 · 更弱的信息</div>
+        <div class="gold-glow" style="color:#D4AF37;margin-top:6px">✦ 点缀金色高亮 ✦</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>知更鸟 6 色映射</b>：肤色 #FDF0FA → 主文字 / 发色 #C8B8D8 → 次文字 / 瞳色 #6B8E5A → 主强调·品牌 / 礼服灰白 #F0F0F5 → 对比按钮文字 / 礼服紫 #8A6D9B → 按钮·选中·装饰 / 点缀金 #D4AF37 → 边框·高亮·辉光。<br>
+  流萤配色暂存备份（identity.js / tokens.js 注释块），仅用于对照，目前不启用。
+</div>
+</body>
+</html>
