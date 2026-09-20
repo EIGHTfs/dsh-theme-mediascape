@@ -1,0 +1,23 @@
+/* 知更鸟（原版）基底 — 内置基底 css（对照页 /api/theme-bases 动态读取，勿手改 JS 写死） */
+:root {
+  --swatch-label: "知更鸟（原版）";
+  --swatch-badge: "原版";
+  --swatch-bg: #100e1c;
+  --swatch-bgSoft: #151230;
+  --swatch-bgLayer: #161222;
+  /* 知更鸟 6 色（基础色值） */
+  --swatch-skin: #FDF0FA;
+  --swatch-hair: #C8B8D8;
+  --swatch-eye: #6B8E5A;
+  --swatch-white: #F0F0F5;
+  --swatch-purple: #8A6D9B;
+  --swatch-gold: #D4AF37;
+  /* 组件样式色（缺省按 6 色映射：主按钮=瞳色、次要=紫、激活/高亮=金、次文字=发色、三级=发色弱化） */
+  --swatch-btn-primary: #8A6D9B;
+  --swatch-btn-secondary: #8A6D9B;
+  --swatch-chip-active: #D4AF37;
+  --swatch-text-primary: #FDF0FA;
+  --swatch-text-dim: #C8B8D8;
+  --swatch-text-tertiary: #9d8fae;
+  --swatch-gold-glow: #D4AF37;
+}

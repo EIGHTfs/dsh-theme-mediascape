@@ -80,88 +80,37 @@
 
 <script>
 "use strict";
-// ═══════════ 基底池（以后加基底只在此追加对象） ═══════════
-const ROBIN6 = [
-  { name: "肤色",     hex: "#FDF0FA" },
-  { name: "发色",     hex: "#C8B8D8" },
-  { name: "瞳色",     hex: "#6B8E5A" },
-  { name: "礼服灰白", hex: "#F0F0F5" },
-  { name: "礼服紫",   hex: "#8A6D9B" },
-  { name: "点缀金",   hex: "#D4AF37" },
-];
-const BASES = {
-  "robin": {
-    label: "知更鸟（当前基底）",
-    bg: "#100e1c", badge: "新基底", badgeClass: "new",
-    swatches: ROBIN6,
-    // 组件初始样式：{ role, text, style }（style 为 CSS 声明，click 换色时更新 color/background）
-    comps: [
-      { role: "btn-primary", text: "主要按钮", style: "background:#8A6D9B;color:#fdf0fa;border:1px solid rgba(212,175,55,.4)" },
-      { role: "btn-secondary", text: "次要按钮", style: "background:rgba(138,109,155,.16);color:#c8b8d8;border:1px solid rgba(212,175,55,.38)" },
-      { role: "chip-active", text: "激活态", style: "background:rgba(212,175,55,.12);color:#D4AF37" },
-      { role: "text-primary", text: "主文字 · 知更鸟的歌声", style: "color:#FDF0FA" },
-      { role: "text-dim", text: "次文字 · 淡紫银渐变", style: "color:#C8B8D8" },
-      { role: "text-tertiary", text: "三级文字 · 更弱的信息", style: "color:#9d8fae" },
-      { role: "gold-glow", text: "✦ 点缀金色高亮 ✦", style: "color:#D4AF37;text-shadow:0 0 14px rgba(212,175,55,.5)" },
-    ],
-    cardStyle: "background:rgba(24,18,34,.72);border:1px solid rgba(212,175,55,.22)",
-    note: "肤色→主文字 / 发色→次文字 / 瞳色→主强调·品牌 / 礼服灰白→对比按钮文字 / 礼服紫→按钮·选中·装饰 / 点缀金→边框·高亮·辉光",
-  },
-  "robin-bright": {
-    label: "知更鸟·提亮（当前正式基底）",
-    bg: "#0d0f1a", bgSoft: "#151230", bgLayer: "#1b1636", badge: "提亮", badgeClass: "new",
-    swatches: [
-      { name: "肤色", hex: "#FDF0FA" },
-      { name: "发色", hex: "#E2D8EC" },
-      { name: "瞳色", hex: "#7EA36C" },
-      { name: "礼服灰白", hex: "#F0F0F5" },
-      { name: "礼服紫", hex: "#A78BC0" },
-      { name: "点缀金", hex: "#E8C04A" },
-    ],
-    // 提亮：主按钮=提亮瞳色绿、次要=提亮紫、激活=提亮金、次文字=提亮发色、三级=提亮发色弱化、高亮=提亮金
-    comps: [
-      { role: "btn-primary", text: "主要按钮", style: "background:#7EA36C;color:#101410;border:1px solid rgba(232,192,74,.45)" },
-      { role: "btn-secondary", text: "次要按钮", style: "background:rgba(167,139,192,.2);color:#E2D8EC;border:1px solid rgba(232,192,74,.42)" },
-      { role: "chip-active", text: "激活态", style: "background:rgba(232,192,74,.14);color:#E8C04A" },
-      { role: "text-primary", text: "主文字 · 知更鸟的歌声", style: "color:#FDF0FA" },
-      { role: "text-dim", text: "次文字 · 淡紫银提亮", style: "color:#E2D8EC" },
-      { role: "text-tertiary", text: "三级文字 · 更弱的信息", style: "color:#C0B0D2" },
-      { role: "gold-glow", text: "✦ 点缀金色高亮 ✦", style: "color:#E8C04A;text-shadow:0 0 14px rgba(232,192,74,.55)" },
-    ],
-    cardStyle: "background:rgba(27,22,54,.72);border:1px solid rgba(232,192,74,.26)",
-    note: "知更鸟 6 色整体提亮提饱和（对照页一键应用生成）：瞳色绿 #7EA36C / 礼服紫 #A78BC0 / 发色 #E2D8EC / 点缀金 #E8C04A，保持 6 色身份更接近流萤高亮感",
-  },
-  "firefly": {
-    label: "流萤（暂存对照）",
-    bg: "#0d1420", badge: "暂存（仅对照）", badgeClass: "old",
-    swatches: [
-      { name: "强调绿", hex: "#7dff9e" },
-      { name: "按钮绿", hex: "#00e676" },
-      { name: "主文字", hex: "#eafff3" },
-      { name: "次文字", hex: "#a9c9b9" },
-      { name: "背景",   hex: "#0d1420" },
-      { name: "浮层",   hex: "#16283f" },
-    ],
-    comps: [
-      { role: "btn-primary", text: "主要按钮", style: "background:#00e676;color:#042b11;border:1px solid rgba(0,255,135,.38)" },
-      { role: "btn-secondary", text: "次要按钮", style: "background:rgba(0,230,118,.14);color:#00e676;border:1px solid rgba(0,255,135,.38)" },
-      { role: "chip-active", text: "激活态", style: "background:rgba(0,255,135,.12);color:#7dff9e" },
-      { role: "text-primary", text: "主文字 · 流萤萤火归位", style: "color:#eafff3" },
-      { role: "text-dim", text: "次文字 · 次级信息层级", style: "color:#a9c9b9" },
-      { role: "text-tertiary", text: "三级文字 · 更弱的信息", style: "color:#6f8a7c" },
-      { role: "gold-glow", text: "✦ 萤火金色高亮 ✦", style: "color:#ffd93b;text-shadow:0 0 14px rgba(255,217,59,.5)" },
-    ],
-    cardStyle: "background:rgba(13,21,37,.72);border:1px solid rgba(0,255,135,.22)",
-    note: "深空蓝黑 × 萤火虫青绿（#00ff87 / #7dff9e）× 莹白文字——原基底，2026-09-21 起知更鸟为基底，流萤暂存仅对照",
-  },
-};
+// ═══════════ 基底池（动态读取：GET /api/theme-bases，来源 preview/bases/*.css + preview/generated/*.css，不写死） ═══════════
+let BASES = {};          // { id: { label, badge, bg, bgSoft, bgLayer, swatches, comps, cardStyle, note } }
+// 服务端解析的基底已含 swatches/comps/bg；前端补 cardStyle/note（渲染用）
+function finalizeBase(b) {
+  const bsix = {};
+  for (const s of b.swatches) bsix[s.name] = s.hex;
+  const eye = bsix['瞳色'] || bsix['强调绿'] || '#7EA36C';
+  const gold = bsix['点缀金'] || bsix['萤火金色高亮'] || bsix['金色高亮'] || '#D4AF37';
+  const purple = bsix['礼服紫'] || bsix['按钮绿'] || '#8A6D9B';
+  b.cardStyle = `background:rgba(24,18,34,.72);border:1px solid rgba(212,175,55,.22)`;
+  b.note = b.label + '：6 色基底（点组件换色 · 点背景块换背景 · ⬇ 应用为正式基底）';
+  return b;
+}
+async function loadBases() {
+  try {
+    const resp = await fetch('/api/theme-bases');
+    const j = await resp.json();
+    BASES = {};
+    for (const b of (j.bases || [])) BASES[b.id] = finalizeBase(b);
+  } catch (e) {
+    // 接口失败：留空（页面会提示），不阻断
+    BASES = {};
+  }
+  return BASES;
+}
+
 
 // ═══════════ 状态 ═══════════
 const state = { L: { base: "robin-bright", comps: {}, bg: null }, R: { base: "firefly", comps: {}, bg: null } };
 // comps: { role: { style, text } }——用户点击换色后记录覆盖；bg: 列背景色（null=用基底默认，点过=覆盖）
-
-// 背景色池（深空系，供「点击列背景循环」）
-const BG_POOL = ["#0d0f1a", "#100e1c", "#0a0c16", "#12102a", "#0e1420", "#141222", "#181228", "#0f1622"];
+// 默认基底在 loadBases 完成后校验存在性，不存在回退到第一个
 
 // ═══════════ 工具 ═══════════
 const $ = (id) => document.getElementById(id);
@@ -230,14 +179,21 @@ function renderCol(side) {
   $("note").innerHTML = `<b>${base.label}</b>：${base.note}`;
 }
 
-// ═══════════ 选色：6 色循环 ═══════════
-// 点击组件 → 在知更鸟 6 色（ROBIN6）中循环切换；背景类组件换 background+对比文字色，文字类换 color。
+// ═══════════ 选色：当前基底 6 色循环 ═══════════
+// 点击组件 → 在当前基底 swatches（6 色）中循环切换；背景类组件换 background+对比文字色，文字类换 color。
+function swatchPool(side) {
+  const base = BASES[state[side].base];
+  return (base && base.swatches && base.swatches.length ? base.swatches : []);
+}
 function cycleColor(side, role) {
+  const pool = swatchPool(side);
+  if (!pool.length) return;
   const comp = state[side].comps[role];
   const curHex = /#([0-9a-fA-F]{6})/i.exec(comp.style)?.[0]?.toUpperCase() || "";
-  let idx = ROBIN6.findIndex((s) => s.hex.toUpperCase() === curHex);
-  idx = (idx + 1) % ROBIN6.length; // 找不到（自定义色）→ 从第 0 个开始
-  const hex = ROBIN6[idx].hex;
+  let idx = pool.findIndex((s) => s.hex.toUpperCase() === curHex);
+  idx = (idx + 1) % pool.length; // 找不到（自定义色）→ 从第 0 个开始
+  const sw = pool[idx];
+  const hex = sw.hex;
   const tc = textColorFor(hex);
   let style = comp.style;
   if (/background:/.test(style)) {
@@ -253,17 +209,20 @@ function cycleColor(side, role) {
   }
   comp.style = style;
   renderCol(side);
-  toast(`${ROBIN6[idx].name} ${hex} → ${role}`);
+  toast(`${sw.name} ${hex} → ${role}`);
 }
-// 点击列空白 → 循环切换背景色（BG_POOL）
+// 点击背景块 → 在当前基底 6 色（swatches）中循环切换背景
 function cycleBg(side) {
+  const pool = swatchPool(side);
+  if (!pool.length) return;
   const st = state[side];
   const cur = (st.bg || BASES[st.base].bg).toLowerCase();
-  let idx = BG_POOL.indexOf(cur);
-  idx = (idx + 1) % BG_POOL.length;
-  st.bg = BG_POOL[idx];
+  const poolHex = pool.map((s) => s.hex.toLowerCase());
+  let idx = poolHex.indexOf(cur);
+  idx = (idx + 1) % pool.length;
+  st.bg = pool[idx].hex;
   renderCol(side);
-  toast(`背景 ${BG_POOL[idx]} → ${side} 列`);
+  toast(`背景 ${pool[idx].name} ${pool[idx].hex} → ${side} 列`);
 }// 应用指定列为正式基底：把该列颜色打包（6 色 + bg）POST /api/theme-apply
 async function applyCol(side) {
   const st = state[side];
@@ -327,12 +286,26 @@ document.addEventListener("click", (e) => {
 });
 $("btnReset").addEventListener("click", () => { state.L.comps = {}; state.R.comps = {}; renderCol("L"); renderCol("R"); toast("已重置默认配色"); });
 
-// ═══════════ 导出 CSS（落盘 preview/generated/） ═══════════
+// ═══════════ 导出 CSS（落盘 preview/generated/，格式兼容 /api/theme-bases 回读） ═══════════
 function genCssFor(side) {
   const st = state[side];
   const base = BASES[st.base];
   const name = side === "L" ? "left" : "right";
-  const lines = [`/* ${base.label} — 配色导出（${side} 列） */`, ":root {"];
+  const lines = [`/* ${base.label} — 配色导出（${side} 列） */`, ":root {", `  --swatch-label: "${base.label}";`];
+  // 6 色 + 背景（回读重建基底）
+  if (base.swatches && base.swatches.length) {
+    const sixKey = ['skin', 'hair', 'eye', 'white', 'purple', 'gold'];
+    const sixName = { skin: '肤色', hair: '发色', eye: '瞳色', white: '礼服灰白', purple: '礼服紫', gold: '点缀金' };
+    for (const s of base.swatches) {
+      const k = Object.keys(sixName).find((kk) => sixName[kk] === s.name);
+      if (k) lines.push(`  --swatch-${k}: ${s.hex.toUpperCase()};`);
+      else lines.push(`  /* ${s.name}: ${s.hex} */`);
+    }
+  }
+  lines.push(`  --swatch-bg: ${(st.bg || base.bg).toUpperCase()};`);
+  if (base.bgSoft) lines.push(`  --swatch-bgSoft: ${base.bgSoft.toUpperCase()};`);
+  if (base.bgLayer) lines.push(`  --swatch-bgLayer: ${base.bgLayer.toUpperCase()};`);
+  // 组件色
   for (const role of Object.keys(st.comps)) {
     const comp = st.comps[role];
     const color = /#([0-9a-f]{6})/i.exec(comp.style)?.[0];
@@ -361,9 +334,21 @@ $("btnExport").addEventListener("click", async () => {
   $("btnExport").disabled = false;
 });
 
-// ═══════════ 启动 ═══════════
-initSelects();
-renderCol("L"); renderCol("R");
+// ═══════════ 启动（基底动态加载后初始化） ═══════════
+(async function boot() {
+  await loadBases();
+  const ids = Object.keys(BASES);
+  // 默认基底校验：不存在则回退第一个（动态目录可能变化）
+  for (const side of ["L", "R"]) {
+    if (!BASES[state[side].base] && ids.length) state[side].base = ids[0];
+  }
+  if (!ids.length) {
+    $("note").innerHTML = "⚠️ 基底加载失败（/api/theme-bases 无返回），请检查预览服务器";
+    return;
+  }
+  initSelects();
+  renderCol("L"); renderCol("R");
+})();
 </script>
 </body>
 </html>

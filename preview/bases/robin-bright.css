@@ -1,0 +1,23 @@
+/* 知更鸟·提亮（当前正式基底）基底 — 内置基底 css（对照页 /api/theme-bases 动态读取，勿手改 JS 写死） */
+:root {
+  --swatch-label: "知更鸟·提亮（当前正式基底）";
+  --swatch-badge: "提亮";
+  --swatch-bg: #0d0f1a;
+  --swatch-bgSoft: #151230;
+  --swatch-bgLayer: #1b1636;
+  /* 知更鸟 6 色提亮版（整体提亮提饱和，保持 6 色身份） */
+  --swatch-skin: #FDF0FA;
+  --swatch-hair: #E2D8EC;
+  --swatch-eye: #7EA36C;
+  --swatch-white: #F0F0F5;
+  --swatch-purple: #A78BC0;
+  --swatch-gold: #E8C04A;
+  /* 组件样式色（缺省按 6 色映射） */
+  --swatch-btn-primary: #7EA36C;
+  --swatch-btn-secondary: #A78BC0;
+  --swatch-chip-active: #E8C04A;
+  --swatch-text-primary: #FDF0FA;
+  --swatch-text-dim: #E2D8EC;
+  --swatch-text-tertiary: #C0B0D2;
+  --swatch-gold-glow: #E8C04A;
+}

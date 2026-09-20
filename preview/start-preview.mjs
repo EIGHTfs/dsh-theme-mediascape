@@ -166,6 +166,60 @@ function buildTokensContent(colors) {
   return lines.join('\n');
 }
 
+// ── 基底动态读取：解析基底 css（--swatch-* 变量）→ 基底对象 ──
+// 读取 preview/bases/*.css（内置）与 preview/generated/*.css（用户导出），下拉不写死。
+// css 格式：:root { --swatch-label/badge/bg/bgSoft/bgLayer/skin/hair/eye/white/purple/gold + --swatch-<role> }
+function parseSwatchCss(id, cssText) {
+  const vars = {};
+  for (const m of cssText.matchAll(/--swatch-([a-zA-Z0-9_-]+)\s*:\s*([^;]+);/g)) {
+    vars[m[1]] = m[2].trim().replace(/^"|"$/g, '');
+  }
+  // 6 色（同 hex 去重，避免循环换色卡在同色）
+  const six = ['skin', 'hair', 'eye', 'white', 'purple', 'gold'];
+  const swatches = [];
+  const sixName = { skin: '肤色', hair: '发色', eye: '瞳色', white: '礼服灰白', purple: '礼服紫', gold: '点缀金' };
+  const seenHex = new Set();
+  for (const k of six) {
+    if (vars[k]) {
+      const hex = vars[k].toUpperCase();
+      if (!seenHex.has(hex)) { swatches.push({ name: sixName[k], hex }); seenHex.add(hex); }
+    }
+  }
+  // 组件样式：优先 --swatch-<role>，缺省按 6 色映射
+  const compText = { 'btn-primary': '主要按钮', 'btn-secondary': '次要按钮', 'chip-active': '激活态', 'text-primary': '主文字 · 知更鸟的歌声', 'text-dim': '次文字', 'text-tertiary': '三级文字', 'gold-glow': '✦ 点缀金色高亮 ✦' };
+  const hexToRgba = (hex, a) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex)); if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  };
+  const roleStyle = {
+    'btn-primary': (h) => `background:${h};color:#101410;border:1px solid rgba(212,175,55,.45)`,
+    'btn-secondary': (h) => `background:${hexToRgba(h, 0.2)};color:${h};border:1px solid rgba(212,175,55,.42)`,
+    'chip-active': (h) => `background:${hexToRgba(h, 0.14)};color:${h}`,
+    'text-primary': (h) => `color:${h}`,
+    'text-dim': (h) => `color:${h}`,
+    'text-tertiary': (h) => `color:${h}`,
+    'gold-glow': (h) => `color:${h};text-shadow:0 0 14px ${hexToRgba(h, 0.55)}`,
+  };
+  const roleSixKey = { 'btn-primary': 'eye', 'btn-secondary': 'purple', 'chip-active': 'gold', 'text-primary': 'skin', 'text-dim': 'hair', 'text-tertiary': 'hair', 'gold-glow': 'gold' };
+  const comps = [];
+  for (const role of Object.keys(roleStyle)) {
+    const hex = (vars[role] || vars[roleSixKey[role]] || '#888888').toUpperCase();
+    comps.push({ role, text: compText[role], style: roleStyle[role](hex) });
+  }
+  return {
+    id,
+    label: vars.label || id,
+    badge: vars.badge || '导出',
+    bg: vars.bg || '#0d0f1a',
+    bgSoft: vars.bgSoft || '#101020',
+    bgLayer: vars.bgLayer || '#161222',
+    swatches,
+    comps,
+  };
+}
+
+
 
 
 // ── 可配置项 ──
@@ -528,6 +582,28 @@ const server = createServer((req, res) => {
         send(res, 500, JSON.stringify({ ok: false, error: e.message }), 'application/json');
       }
     });
+    return;
+  }
+
+  // /api/theme-bases → 基底清单（GET，动态读取 bases/ + generated/ 的 css，下拉不写死）
+  if (req.method === 'GET' && pathname === '/api/theme-bases') {
+    try {
+      const bases = [];
+      const dirs = ['bases', 'generated'];
+      for (const d of dirs) {
+        const dir = join(SCRIPT_DIR, d);
+        let files = [];
+        try { files = readdirSync(dir).filter((f) => f.endsWith('.css')); } catch { /* 目录不存在跳过 */ }
+        for (const f of files.sort()) {
+          const cssText = readFileSync(join(dir, f), 'utf8');
+          const id = f.replace(/\.css$/, '');
+          bases.push(parseSwatchCss(id, cssText));
+        }
+      }
+      send(res, 200, JSON.stringify({ ok: true, bases }), 'application/json; charset=utf-8');
+    } catch (e) {
+      send(res, 500, JSON.stringify({ ok: false, error: e.message }), 'application/json');
+    }
     return;
   }
 

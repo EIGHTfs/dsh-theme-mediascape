@@ -1,0 +1,23 @@
+/* 流萤（暂存对照）基底 — 内置基底 css（对照页 /api/theme-bases 动态读取，勿手改 JS 写死） */
+:root {
+  --swatch-label: "流萤（暂存对照）";
+  --swatch-badge: "暂存";
+  --swatch-bg: #0d1420;
+  --swatch-bgSoft: #101020;
+  --swatch-bgLayer: #16283f;
+  /* 流萤 6 色（萤火虫霓虹，仅对照不启用） */
+  --swatch-skin: #eafff3;
+  --swatch-hair: #a9c9b9;
+  --swatch-eye: #00e676;
+  --swatch-white: #f0f0f5;
+  --swatch-purple: #7dff9e;
+  --swatch-gold: #ffd93b;
+  /* 组件样式色（缺省按 6 色映射） */
+  --swatch-btn-primary: #00e676;
+  --swatch-btn-secondary: #7dff9e;
+  --swatch-chip-active: #ffd93b;
+  --swatch-text-primary: #eafff3;
+  --swatch-text-dim: #a9c9b9;
+  --swatch-text-tertiary: #6f8a7c;
+  --swatch-gold-glow: #ffd93b;
+}

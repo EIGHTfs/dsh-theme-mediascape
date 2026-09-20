@@ -1,0 +1,23 @@
+/* 知更鸟·蓝 基底 — 内置基底 css（对照页 /api/theme-bases 动态读取，勿手改 JS 写死） */
+:root {
+  --swatch-label: "知更鸟·蓝（对照）";
+  --swatch-badge: "新配色";
+  --swatch-bg: #3E2F66;
+  --swatch-bgSoft: #2a2148;
+  --swatch-bgLayer: #362a56;
+  /* 知更鸟·蓝 6 色：主色晴空蓝 / 浅色白浅蓝 / 深蓝点缀湛蓝 / 金色指甲金黄 / 粉色小鸟粉 / 发饰蝴蝶结深紫（作背景） */
+  --swatch-skin: #E8F4FA;
+  --swatch-hair: #F2A7B8;
+  --swatch-eye: #7CC8E8;
+  --swatch-white: #D8EAF4;
+  --swatch-purple: #3B89C4;
+  --swatch-gold: #E2C05A;
+  /* 组件样式色（缺省按 6 色映射） */
+  --swatch-btn-primary: #7CC8E8;
+  --swatch-btn-secondary: #3B89C4;
+  --swatch-chip-active: #E2C05A;
+  --swatch-text-primary: #E8F4FA;
+  --swatch-text-dim: #F2A7B8;
+  --swatch-text-tertiary: #9E8FC8;
+  --swatch-gold-glow: #E2C05A;
+}
