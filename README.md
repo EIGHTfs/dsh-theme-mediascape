@@ -36,7 +36,7 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 - 「**景**」按钮弹出常驻面板：
   - **类型**：动态（mp4）/ 静态（图片），各自独立记忆当前壁纸
   - **选择**：弹出缩略图网格（正方形预览、固定三行、可滚动），点卡片直接应用该壁纸
-  - **主题随壁纸联动**（1.0.3）：图片壁纸切换时自动提取主色生成主题色（面板/按钮/文字/边框随壁纸配色换肤，`--ff-theme-*` 变量命名空间，基底色兜底）；视频壁纸不触发，沿用图片最后一套主题
+  - **主题自动配色**（1.0.3 预留，入口暂注释）：图片壁纸取主色生成 `--ff-theme-*` 主题变量换肤（基底变量/取色模块已就位，保留原配色；后续启用只需恢复 `render()` 内一行调用）
   - **移除**：在网格中勾选一张/多张后点「移除」——内置壁纸记为隐藏、运行时导入的壁纸从服务器删除（移入回收站，可恢复）
   - **随机**：勾选若干张后点「随机」——把它们设为随机轮换池并立即进入随机模式（不勾选则等于全部）
   - **随机间隔**：自定义分钟数（默认 5 分钟）
@@ -257,7 +257,7 @@ node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里�
 
 | 版本 | 说明 |
 |---|---|
-| 1.0.3 | 壁纸主题自动配色：图片壁纸切换时 canvas 降采样取主色（SHA-1 id 缓存，同图只算一次）→ HSL 调优生成 `--ff-theme-*` 主题变量（背景/强调/文字/边框，RGB 三元组命名空间）覆盖换肤；identity.js 硬编码色 152 处抽离为基底 CSS 变量引用（`var(--ff-theme-x, 基底值)`，基底值=原流萤色，视觉零变化）；视频壁纸不触发取色（沿用图片最后一套主题，防色突变）；并发取色 seq 守卫（快速切图只应用最新结果）；上传落盘改 SHA-1 hash 名 + `.labels.json` 存显示名（json 兼具重复文件判断，同内容复用仅更新显示名）；accept 复用 config.js（`UPLOAD_ACCEPT` 派生，`GET /config` 端点单一权威）；占位符去 FIREFLY 旧名前缀（`__BG_MANIFEST_`/`__UPLOAD_ACCEPT_` 等） |
+| 1.0.3 | 壁纸主题自动配色（**入口暂注释，保留原配色**；基底变量/取色模块架构就位，后续恢复 `render()` 内一行调用即启用）：identity.js 硬编码色 152 处抽离为基底 CSS 变量引用（`var(--ff-theme-x, 基底值)`，基底值=原流萤色，视觉零变化）；新增 theme.js 取色模块（canvas 降采样+量化+HSL 调优，SHA-1 id 缓存、seq 并发守卫、视频不触发）；上传落盘改 SHA-1 hash 名 + `.labels.json` 存显示名（json 兼具重复文件判断，同内容复用仅更新显示名）；accept 复用 config.js（`UPLOAD_ACCEPT` 派生，`GET /config` 端点单一权威）；占位符去 FIREFLY 旧名前缀（`__BG_MANIFEST_`/`__UPLOAD_ACCEPT_` 等） |
 | 1.0.2 | 服务端模块拆分：`lib/index.js`（526 行）按职责拆为 6 模块（config 配置 / paths 路径 / labels 映射 / online 在线下载 / handlers 处理器 / index 入口），对外导出面与行为不变（等价比对逐字节一致）；labels 缓存状态收敛到所属模块（修复 ESM 跨模块赋值只读限制）；拆分回归验证脚本入库（`preview/tests/ms-split-behavior-check.mjs`、`ms-split-equivalence.mjs`）；浏览器端模板拆分：`lib/client.template.js`（2147 行）按职责拆为 `lib/client-parts/` 5 子目录 17 片段（foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件 + apply 入口，build 按 PART_ORDER 拼接回单文件，产物与拆分前逐字节一致） |
 | 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |
 | 1.0.0 | 改名迁移：仓库/包名 `dsh-theme-mediascape`（媒体景观主题），插件 ID `theme-mediascape`，全新 init 独立历史；壁纸服务器持久化（动态上限 + 原始文件名保留 + 上传超时/失败提示） |
