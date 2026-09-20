@@ -156,12 +156,14 @@ function renderCol(side) {
     return `<div class="swatch" style="background:${s.hex};color:${tc}"><span class="name">${s.name}</span><span class="hex">${s.hex}</span></div>`;
   }).join("");
 
-  const row1 = [comps["btn-primary"], comps["btn-secondary"], comps["chip-active"]].map((c) =>
-    `<div class="comp btn" data-role="${c.role}" data-side="${side}" style="${c.style}">${c.text}</div>`
-  ).join("");
-  const cardComp = [comps["text-primary"], comps["text-dim"], comps["text-tertiary"], comps["gold-glow"]].map((c) =>
-    `<div class="comp" data-role="${c.role}" data-side="${side}" style="${c.style}${c.role === "gold-glow" ? ";margin-top:6px" : ""}">${c.text}</div>`
-  ).join("");
+  const row1 = ["btn-primary", "btn-secondary", "chip-active"].map((role) => {
+    const c = comps[role];
+    return `<div class="comp btn" data-role="${role}" data-side="${side}" style="${c.style}">${c.text}</div>`;
+  }).join("");
+  const cardComp = ["text-primary", "text-dim", "text-tertiary", "gold-glow"].map((role) => {
+    const c = comps[role];
+    return `<div class="comp" data-role="${role}" data-side="${side}" style="${c.style}${role === "gold-glow" ? ";margin-top:6px" : ""}">${c.text}</div>`;
+  }).join("");
 
   col.className = "col";
   col.style.background = base.bg;
