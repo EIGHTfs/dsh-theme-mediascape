@@ -66,7 +66,16 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 
 ### 背景音乐
 
-- 「**乐**」按钮点击开/关，弹出音乐面板
+- 「**乐**」按钮：亮 = 播放中，暗 = 暂停；点击按状态机联动播放与二级面板（见下表）；点面板外关面板**不影响播放状态**
+- **乐按钮 × 二级面板状态机**：
+
+  | 当前状态 | 点「乐」按钮 | 点面板外 |
+  |---|---|---|
+  | 暗（暂停）+ 面板关 | 变亮播放 + **打开面板** | —（无面板可关） |
+  | 亮（播放）+ 面板关 | 保持亮播放不变 + **打开面板** | —（无面板可关） |
+  | 亮（播放）+ 面板开 | **变暗暂停**，面板**保持开不关** | 关面板，**继续播放** |
+  | 暗（暂停）+ 面板开 | 恢复播放（亮），面板保持开 | 关面板，保持暂停 |
+
 - 旋转唱片 + 封面（运行时音乐列表带封面字段：同名封面图或 `music/music.json` 指定；无封面时自动读 MP3/FLAC 内嵌封面）+ 进度条拖动跳转
 - 上一首 / 播放暂停 / 下一首 / 循环模式（单曲循环 → 列表循环 → 随机播放）
 - **选择**：弹出歌单，勾选后**移除**（内置歌曲隐藏、导入歌曲删除）或**随机**（以勾选歌曲为随机池）
@@ -304,7 +313,7 @@ dsh plugin --profile web remove dsh-theme-mediascape
 
 | 版本 | 说明 |
 |---|---|
-| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录复制映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录复制**到 `$DSH_HOME/theme-mediascape/`（仓库根保留不删源，只复制一次，目标已存在非空即跳过；link 安装下工作区素材不被搬空）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单，`/music/list` 每次调用自动同步目录实际内容回写清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；**启动画面支持视频**（`.mp4` 用 `<video muted loop autoplay>`，默认知更鸟 PV 前 6 秒 `robin-6s.mp4`；标题/副标题改可配置变量 `title`/`sub` 默认空；`durationMs` 默认 3000 约 3 秒一循环）；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
+| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录复制映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录复制**到 `$DSH_HOME/theme-mediascape/`（仓库根保留不删源，只复制一次，目标已存在非空即跳过；link 安装下工作区素材不被搬空）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单，`/music/list` 每次调用自动同步目录实际内容回写清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；**启动画面支持视频**（`.mp4` 用 `<video muted loop autoplay>`，默认知更鸟 PV 前 6 秒 `robin-6s.mp4`；标题/副标题改可配置变量 `title`/`sub` 默认空；`durationMs` 默认 3000 约 3 秒一循环）；**「乐」按钮状态机**（亮=播放/暗=暂停；面板关点乐→开面板+播放，面板开播放中点乐→暂停且面板不关，点外关面板不碰播放）；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
 | 1.0.3 | 壁纸主题自动配色（**入口暂注释，保留原配色**；基底变量/取色模块架构就位，后续恢复 `render()` 内一行调用即启用）：identity.js 硬编码色 152 处抽离为基底 CSS 变量引用（`var(--ff-theme-x, 基底值)`，基底值=原流萤色，视觉零变化）；新增 theme.js 取色模块（canvas 降采样+量化+HSL 调优，SHA-1 id 缓存、seq 并发守卫、视频不触发）；上传落盘改 SHA-1 hash 名 + `.labels.json` 存显示名（json 兼具重复文件判断，同内容复用仅更新显示名）；accept 复用 config.js（`UPLOAD_ACCEPT` 派生，`GET /config` 端点单一权威）；占位符去 FIREFLY 旧名前缀（`__BG_MANIFEST_`/`__UPLOAD_ACCEPT_` 等） |
 | 1.0.2 | 服务端模块拆分：`lib/index.js`（526 行）按职责拆为 6 模块（config 配置 / paths 路径 / labels 映射 / online 在线下载 / handlers 处理器 / index 入口），对外导出面与行为不变（等价比对逐字节一致）；labels 缓存状态收敛到所属模块（修复 ESM 跨模块赋值只读限制）；拆分回归验证脚本入库（`preview/tests/ms-split-behavior-check.mjs`、`ms-split-equivalence.mjs`）；浏览器端模板拆分：`lib/client.template.js`（2147 行）按职责拆为 `lib/client-parts/` 5 子目录 17 片段（foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件 + apply 入口，build 按 PART_ORDER 拼接回单文件，产物与拆分前逐字节一致） |
 | 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |
