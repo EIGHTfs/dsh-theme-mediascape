@@ -1,0 +1,21 @@
+{
+  "file": "lib/index.js",
+  "outdir": "lib",
+  "index": "index.js",
+  "index_header": "/**\n * dsh-theme-mediascape · 服务端入口（只做注册与再导出）\n */",
+  "plan": {
+    "config.js": ["ROOT", "MIME", "ALLOWED_DIRS", "ALLOWED_UPLOAD_EXT", "MAX_UPLOAD_RATIO", "MIN_UPLOAD_LIMIT", "FALLBACK_UPLOAD_LIMIT", "uploadLimitBytes"],
+    "paths.js": ["wallpaperDir", "ONLINE_DIR_NAME", "onlineDir", "LABELS_FILE", "labelsFilePath", "labelMap"],
+    "labels.js": ["loadLabels", "saveLabels"],
+    "online.js": ["ONLINE_SOURCES_FILE", "loadOnlineSources", "ONLINE_CONCURRENCY", "ONLINE_DL_TIMEOUT", "ONLINE_DL_RETRY", "downloadOne", "downloadAllOnline", "onlineStarted", "ensureOnlineDownload"],
+    "handlers.js": ["handleDelete", "handleList", "handleUpload"],
+    "index.js": ["registerAssets", "apply"]
+  },
+  "headers": {
+    "config.js": "/**\n * 配置与常量（静态资产 MIME / 白名单 / 上传限制 / 在线下载参数）\n */",
+    "paths.js": "/**\n * 路径推导（壁纸目录 / labels 文件 / 在线下载子目录）\n */",
+    "labels.js": "/**\n * labels 映射读写（hash 主键 → 展示文件名）\n */",
+    "online.js": "/**\n * 在线资源下载（hash 主键配置、后台静默下载、断点续传 .part）\n */",
+    "handlers.js": "/**\n * HTTP 处理器（删除 / 列表 / 上传）\n */"
+  }
+}

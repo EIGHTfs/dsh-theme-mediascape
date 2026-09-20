@@ -117,7 +117,12 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 ```
 dsh-theme-mediascape/
 ├── package.json            # dsh.client 声明（web 插件，注入 ui-theme 槽位）
-├── lib/index.js            # 服务端：注册 /theme-mediascape-assets 静态资产路由
+├── lib/index.js            # 服务端入口：注册 /theme-mediascape-assets 前缀路由 + apply
+├── lib/config.js           # 服务端配置：MIME 表 / 白名单 / 上传上限（statfs 动态）
+├── lib/paths.js            # 服务端路径推导：壁纸目录 / labels 文件 / 在线下载子目录
+├── lib/labels.js           # 服务端 labels 映射读写（hash 主键 → 展示文件名）
+├── lib/online.js           # 服务端在线资源下载（.part 断点续传 + SHA-1 校验 + 后台静默）
+├── lib/handlers.js         # 服务端 HTTP 处理器：删除 / 列表 / 上传
 ├── lib/client.template.js  # 浏览器端主题源码（含占位符，随仓库提交）
 ├── lib/client.js           # 构建产物（build.cjs --clean 生成，只含 URL 清单，随仓库提交干净版）
 ├── assets/                 # 壁纸：图片(jpg/png/webp) + mp4 动态壁纸
@@ -245,6 +250,7 @@ node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里�
 
 | 版本 | 说明 |
 |---|---|
+| 1.0.2 | 服务端模块拆分：`lib/index.js`（526 行）按职责拆为 6 模块（config 配置 / paths 路径 / labels 映射 / online 在线下载 / handlers 处理器 / index 入口），对外导出面与行为不变（等价比对逐字节一致）；labels 缓存状态收敛到所属模块（修复 ESM 跨模块赋值只读限制）；拆分回归验证脚本入库（`preview/tests/ms-split-behavior-check.mjs`、`ms-split-equivalence.mjs`） |
 | 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |
 | 1.0.0 | 改名迁移：仓库/包名 `dsh-theme-mediascape`（媒体景观主题），插件 ID `theme-mediascape`，全新 init 独立历史；壁纸服务器持久化（动态上限 + 原始文件名保留 + 上传超时/失败提示） |
 
