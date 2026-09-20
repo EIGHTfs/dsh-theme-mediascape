@@ -8,6 +8,6 @@
     "  src!=dst 为组装产出，不参与 --pull 回流（模板改 start.sh 后需重新 --to 下发）"
   ],
   "files": {
-    "server/lib/preview/start.sh": "start.sh"
+    "server/lib/preview/start.sh": "preview/start.sh"
   }
 }

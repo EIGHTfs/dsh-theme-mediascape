@@ -1,9 +1,0 @@
-{
-  "_comment": "在线资源清单（与上传 hash 机制完全一致，来源 http(s)）。格式：hash 为主键（40 位 hex，内容寻址，服务器下载后校验一致）、name 为显示文件名（带后缀，前端显示时去后缀）、url 为下载地址。主题启动时后台静默下载缺失项到 wallpapers/online/<hash>.<ext>，支持断点续传（.part）。",
-  "sources": {
-    "ed711098c642474f802aec98d4f469d8e712a1ec": {
-      "name": "《崩坏：星穹铁道》知更鸟•晴歌角色PV——「追赶风的方向」.mp4",
-      "url": "https://fastcdn.mihoyo.com/content-v2/hkrpg/165882/e3c4087461e3d8277059f213995e4914_2552745935210549914.mp4"
-    }
-  }
-}

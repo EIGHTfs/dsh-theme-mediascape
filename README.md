@@ -40,9 +40,9 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
   - **移除**：在网格中勾选一张/多张后点「移除」——内置壁纸记为隐藏、运行时导入的壁纸从服务器删除（移入回收站，可恢复）
   - **随机**：勾选若干张后点「随机」——把它们设为随机轮换池并立即进入随机模式（不勾选则等于全部）
   - **随机间隔**：自定义分钟数（默认 5 分钟）
-  - **＋ 添加壁纸**：从本机一次多选导入图片/视频（Ctrl/框选），立即生效（**服务器磁盘持久化**：写入 `$DSH_HOME/theme-mediascape/wallpapers/`，刷新/重启/换浏览器都在；**落盘 = SHA-1 hash 名**（内容寻址，同内容天然一份），**显示名存 `.labels.json`**（hash → 原始文件名去扩展名，可手动编辑改显示名；同内容换名重传只更新显示名，不重复落盘）；**跨设备即时可见**：打开壁纸面板即自动刷新列表，另一台设备上传的壁纸无需手动刷新网页）
+  - **＋ 添加壁纸**：从本机一次多选导入图片/视频（Ctrl/框选），立即生效（**服务器磁盘持久化**：写入 `$DSH_HOME/theme-mediascape/wallpaper/`，刷新/重启/换浏览器都在；**落盘 = SHA-1 hash 名**（内容寻址，同内容天然一份），**显示名存 `wallpaper/wallpaper.json`**（hash → 原始文件名去扩展名，可手动编辑改显示名；同内容换名重传只更新显示名，不重复落盘）；**跨设备即时可见**：打开壁纸面板即自动刷新列表，另一台设备上传的壁纸无需手动刷新网页）
   - **上传上限**：按服务器剩余磁盘空间动态计算（默认单文件最多占剩余空间 80%，底线 512MB），装得下就传，快满自动收紧
-  - **默认壁纸**：首次安装（无历史记录）时优先展示 `assets/Default_wallpaper.png`
+  - **默认壁纸**：首次安装（无历史记录）时展示真实数据目录里的第一张壁纸（本地/在线均可）
   - 选择面板点右上角「**—**」或再点「选择」收起；点「**确定**」收起设置面板，所有设置实时生效并持久化
 
 ### 流萤配色
@@ -65,7 +65,7 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 ### 背景音乐
 
 - 「**乐**」按钮点击开/关，弹出音乐面板
-- 旋转唱片 + 封面（内置曲目开箱即用默认「知更鸟」封面，也可手动指定）+ 进度条拖动跳转
+- 旋转唱片 + 封面（运行时音乐列表带封面字段：同名封面图或 `music/music.json` 指定；无封面时自动读 MP3/FLAC 内嵌封面）+ 进度条拖动跳转
 - 上一首 / 播放暂停 / 下一首 / 循环模式（单曲循环 → 列表循环 → 随机播放）
 - **选择**：弹出歌单，勾选后**移除**（内置歌曲隐藏、导入歌曲删除）或**随机**（以勾选歌曲为随机池）
 - **＋ 添加歌曲**：从本机导入音乐并持久化；无封面时自动读取内嵌封面（MP3/FLAC）
@@ -118,31 +118,47 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 ```
 dsh-theme-mediascape/
 ├── package.json            # dsh.client 声明（web 插件，注入 ui-theme 槽位）
-├── lib/index.js            # 服务端入口：注册 /theme-mediascape-assets 前缀路由 + apply
+├── lib/index.js            # 服务端入口：注册 /theme-mediascape-assets 前缀路由 + 目录迁移 + 在线下载
+├── lib/bootstrap.js        # 启动引导：按 sources.json 的 dirs 把仓库根目录整目录迁移到真实数据目录（只搬一次）
 ├── lib/config.js           # 服务端配置：MIME 表 / 白名单 / 上传上限（statfs 动态）
-├── lib/paths.js            # 服务端路径推导：壁纸目录 / labels 文件 / 在线下载子目录
-├── lib/labels.js           # 服务端 labels 映射读写（hash 主键 → 展示文件名）
-├── lib/online.js           # 服务端在线资源下载（.part 断点续传 + SHA-1 校验 + 后台静默）
-├── lib/handlers.js         # 服务端 HTTP 处理器：删除 / 列表 / 上传
-├── lib/client-parts/       # 浏览器端主题源码（17 片段按职责拆分为 5 个子目录：foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件，build 按序拼接回单文件；apply.js 为入口留根）
+├── lib/paths.js            # 服务端路径推导：壁纸/音乐目录 / labels 文件 / 在线下载子目录
+├── lib/labels.js           # 服务端 labels 映射读写（壁纸 wallpaper.json / 音乐 music.json）
+├── lib/online.js           # 服务端在线资源下载（.part 断点续传 + SHA-1 校验 + kind 分流）
+├── lib/handlers.js         # 服务端 HTTP 处理器：删除 / 壁纸列表 / 音乐列表 / 上传
+├── lib/sources.json        # 统一资源配置：sources 在线资源（hash→{name,url,kind}）+ dirs 目录迁移（{仓库目录:真实目录}）
+├── lib/client-parts/       # 浏览器端主题源码（片段按职责拆分为 5 个子目录：foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件，build 按序拼接回单文件；apply.js 为入口留根）
 │   ├── foundation/         # 基础支撑：loader 外壳 / constants 常量 / utils 工具 / tokens 令牌 / assets 素材占位
 │   ├── scenes/             # 视觉表现：identity 身份 CSS / boot 开屏 / wallpaper 壁纸 / upload 上传 / ambience 萤火
 │   ├── sound/              # 音频：typesound 打字音效 / music-extract 封面提取 / music-player 播放器
-│   ├── secrets/            # 彩蛋区：emotes 表情包死代码 / egg SAM 彩蛋
+│   ├── secrets/            # 彩蛋区：egg SAM 彩蛋
 │   ├── toolbar/            # 组件：dock 可拖动工具条
 │   └── apply.js            # 入口（ctx.effect 全量装配）
-├── lib/client.js           # 构建产物（build.cjs --clean 生成，只含 URL 清单，随仓库提交干净版）
-├── assets/                 # 壁纸：图片(jpg/png/webp) + mp4 动态壁纸
+├── lib/client.js           # 构建产物（build.cjs 生成；资源不再内嵌，仅少量配置）
 ├── GIF/                    # 开屏动图（boot.json 配置指定文件，保留 4bfecb05<…>.gif）
-│   └── boot.json           # 开屏启动页配置（file + durationMs）
-├── music/                  # 背景音乐（mp3/ogg/m4a/wav），默认第一首「使一颗心免于哀伤」
-│   └── figure/             # 内置歌曲默认封面（取第一张图片，如知更鸟图）
-├── build.cjs               # 构建：读取 lib/client-parts/ 片段拼回模板，把素材清单（URL）注入 lib/client.js
-├── build.music-exclude.txt # 音乐排除清单（clean 构建时不收录其中列出的曲目）
+│   └── boot.json           # 开屏启动页配置（file + durationMs，运行时 fetch，改配置即生效）
+├── music/                  # 音乐示例（插件启动整目录迁移到 $DSH_HOME/theme-mediascape/music/）
+│   └── music.json          # 音乐清单结构说明（真实数据在迁移后的 music/music.json）
+├── wallpaper/              # 壁纸示例（插件启动整目录迁移到 $DSH_HOME/theme-mediascape/wallpaper/）
+│   └── wallpaper.json      # 壁纸显示名映射结构说明（真实数据在迁移后的 wallpaper/wallpaper.json）
+├── build.cjs               # 构建：读取 lib/client-parts/ 片段拼回模板（资源不再 build 内嵌）
 ├── LICENSE                 # MIT（仅代码）
 ├── .gitignore              # 忽略构建产物与第三方壁纸
 └── README.md
 ```
+
+> **真实数据目录**（插件启动时由 `lib/sources.json` 的 `dirs` 配置驱动迁移，只搬一次）：
+>
+> ```
+> $DSH_HOME/theme-mediascape/
+> ├── wallpaper/             # 壁纸（图片+视频）：上传落盘 + wallpaper/online/ 在线下载子目录
+> │   ├── <sha40>.mp4|png|jpg…
+> │   ├── online/            # sources.json kind=wallpaper 的在线下载落盘
+> │   └── wallpaper.json     # hash → 显示名映射
+> └── music/                 # 音乐：音乐文件 + 封面
+>     ├── <音乐名>.mp3
+>     ├── <封面>.png
+>     └── music.json         # hash → { name, cover } 清单
+> ```
 
 ---
 
@@ -188,7 +204,7 @@ dsh plugin --profile web remove dsh-theme-mediascape
 
 ## 📚 更多文档
 
-- [FAQ 常见问题](./FAQ.md)
+- [目录结构改造与全资源在线化设计](./docs/2026-09-21-目录结构改造-全资源在线化.MD)
 
 ---
 
@@ -196,46 +212,47 @@ dsh plugin --profile web remove dsh-theme-mediascape
 
 **壁纸**有两种添加方式：
 
-1. **运行时添加（推荐）**：点「景」→「＋ 添加壁纸」，从本机一次多选图片/视频（Ctrl/框选），立即生效并持久化
-2. **打包收录**：把文件放入 `assets/` 后运行 `node build.cjs`（适合预置默认壁纸，素材外置由静态路由提供）
+1. **运行时添加（推荐）**：点「景」→「＋ 添加壁纸」，从本机一次多选图片/视频（Ctrl/框选），立即生效并持久化到 `$DSH_HOME/theme-mediascape/wallpaper/`
+2. **在线资源**（配置随主题分发，别人拿到主题即可用，无需改代码）：在 `lib/sources.json` 的 `sources` 里按 hash 主键登记即可
 
-**在线资源**（配置随主题分发，别人拿到主题即可用，无需改代码）：
-
-在 `lib/online-sources.json` 的 `sources` 里按 hash 主键登记即可，主题启动时后台静默下载缺失项到 `wallpapers/online/`，下载完毕自动出现在壁纸列表、可直接选用：
+**在线资源**（壁纸图片/视频 + 音乐统一机制，启动时后台静默下载缺失项）：
 
 ```json
 {
   "sources": {
-    "<sha1-40位hex>": { "name": "示例视频.mp4", "url": "https://example.com/video.mp4" }
+    "<sha1-40位hex>": {
+      "name": "示例视频.mp4",
+      "url": "https://example.com/video.mp4",
+      "kind": "wallpaper"
+    },
+    "<sha1-40位hex>": {
+      "name": "示例歌曲.mp3",
+      "url": "https://example.com/song.mp3",
+      "kind": "music"
+    }
   }
 }
 ```
 
 - **hash**：下载内容的 SHA-1（40 位 hex），同时是去重键与完整性校验（下载后校验一致才落定）
+- **kind 分流**：`wallpaper` → `wallpaper/online/`（壁纸列表）；`music` → `music/`（音乐列表）
 - **断点续传**：中断保留 `<hash>.<ext>.part`，下次启动从断点继续（Range 请求），校验通过才重命名落定
 - **本地 / 在线共存**：本地上传与在线下载同列表展示；同 hash 内容以本地上传优先
-- 内置 `assets/` 素材保留不动；日后交换在线资源只改配置、不改代码
+- 以后加资源只改配置、不改代码
 
-其余素材（开屏动图、音乐）需通过 `build.cjs` 收录进 `lib/client.js` 的 URL 清单：
+**目录迁移**（插件启动时整目录搬一次，把仓库自带的素材目录带到真实数据目录）：
 
-```powershell
-node build.cjs          # 完整构建：收录 assets/ 里全部素材（含第三方，仅供本地使用）
-node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里的素材（用于提交仓库）
+在 `lib/sources.json` 的 `dirs` 里登记要迁移的目录（`{ "仓库根目录名": "真实数据子目录名" }`），启动时整目录移动，只搬一次（目标已存在非空即跳过）：
+
+```json
+{
+  "dirs": { "music": "music", "wallpaper": "wallpaper" }
+}
 ```
 
-- **壁纸**：`assets/` 支持 `.jpg/.jpeg/.png/.webp`（静态）与 `.mp4`（动态）
-- **默认壁纸**：`assets/` 里文件名含 `Default` 的图片会在首次安装（无保存记录）时作为初始壁纸；仓库默认随带 `Default_wallpaper.png`，替换后重新 `node build.cjs --clean` 即可
-- **开屏动图**：`GIF/boot.json` 配置 `file` 指定启动页 gif（默认保留的 `4bfecb05<…>.gif`）、`durationMs` 指定自动淡出时长；改配置刷新即生效（运行时 fetch），无需重新 build
-- **音乐**：`music/` 支持 `.mp3/.ogg/.m4a/.wav`，默认第一首为「使一颗心免于哀伤」；
-  `music/figure/` 里第一张图片会作为内置歌曲默认封面；`build.music-exclude.txt` 里列出的
-  文件名会在构建时被排除（可留待运行时「＋ 添加歌曲」导入）
+**开屏动图**：`GIF/boot.json` 配置 `file` 指定启动页 gif（保留的 `4bfecb05<…>.gif`）、`durationMs` 指定自动淡出时长；改配置刷新即生效（运行时 fetch），无需重新 build
 
-> 💡 体积说明：素材**不内嵌**进 JS 包，由服务端 `/theme-mediascape-assets/` 静态路由按需
-> 流式提供（`lib/client.js` 仅 90KB 左右，避免聚合 bundle 过大导致浏览器加载失败）。
-> 建议素材控制合理体积（mp3 ≤128kbps、图片 ≤500KB、视频 ≤1080p），加快首屏加载。
->
-> ⚠️ **提交仓库前记得跑 `node build.cjs --clean`**（生成只含官方素材的干净版），
-> 避免把含第三方壁纸的完整版误提交。
+> 💡 体积说明：素材**不内嵌**进 JS 包（`lib/client.js` 仅 90KB 左右，避免聚合 bundle 过大导致浏览器加载失败），全部由服务端 `/theme-mediascape-assets/` 静态路由按需流式提供；壁纸/音乐清单也在运行时 API 拉取（`/wallpaper/list`、`/music/list`），**build 不再内嵌任何资源**。
 
 ---
 
@@ -249,7 +266,10 @@ node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里�
    Web Audio 实时合成，无外部资源依赖
 4. **壁纸/音乐渲染**：动态壁纸用 `<video muted loop autoplay>`、静态用 CSS 背景层、
    音乐用 `<audio>`；素材以 `/theme-mediascape-assets/` URL 形式外置（服务端半注册
-   webServer 前缀路由按需流式提供，不内联 base64）
+   webServer 前缀路由按需流式提供，不内联 base64）；**壁纸/音乐清单均运行时 API 拉取**
+   （`/wallpaper/list`、`/music/list`），build 不内嵌任何资源
+5. **启动引导**：apply 时按 `lib/sources.json` 的 `dirs` 把仓库根素材目录整目录迁移到
+   `$DSH_HOME/theme-mediascape/`（只搬一次，幂等），随后后台静默下载 `sources` 在线资源
 
 ---
 
@@ -257,6 +277,7 @@ node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里�
 
 | 版本 | 说明 |
 |---|---|
+| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录迁移映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录迁移**到 `$DSH_HOME/theme-mediascape/`（只搬一次，目标已存在非空即跳过；跨设备 EXDEV 自动降级复制+删源）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
 | 1.0.3 | 壁纸主题自动配色（**入口暂注释，保留原配色**；基底变量/取色模块架构就位，后续恢复 `render()` 内一行调用即启用）：identity.js 硬编码色 152 处抽离为基底 CSS 变量引用（`var(--ff-theme-x, 基底值)`，基底值=原流萤色，视觉零变化）；新增 theme.js 取色模块（canvas 降采样+量化+HSL 调优，SHA-1 id 缓存、seq 并发守卫、视频不触发）；上传落盘改 SHA-1 hash 名 + `.labels.json` 存显示名（json 兼具重复文件判断，同内容复用仅更新显示名）；accept 复用 config.js（`UPLOAD_ACCEPT` 派生，`GET /config` 端点单一权威）；占位符去 FIREFLY 旧名前缀（`__BG_MANIFEST_`/`__UPLOAD_ACCEPT_` 等） |
 | 1.0.2 | 服务端模块拆分：`lib/index.js`（526 行）按职责拆为 6 模块（config 配置 / paths 路径 / labels 映射 / online 在线下载 / handlers 处理器 / index 入口），对外导出面与行为不变（等价比对逐字节一致）；labels 缓存状态收敛到所属模块（修复 ESM 跨模块赋值只读限制）；拆分回归验证脚本入库（`preview/tests/ms-split-behavior-check.mjs`、`ms-split-equivalence.mjs`）；浏览器端模板拆分：`lib/client.template.js`（2147 行）按职责拆为 `lib/client-parts/` 5 子目录 17 片段（foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件 + apply 入口，build 按 PART_ORDER 拼接回单文件，产物与拆分前逐字节一致） |
 | 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |
