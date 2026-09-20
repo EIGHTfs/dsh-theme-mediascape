@@ -36,9 +36,9 @@ function makeReq(method, url) {
 
 // ── 0) 构造隔离初始状态（真实壁纸文件 + labels，防 list 空目录假阴性）──
 rmSync(D, { recursive: true, force: true });
-mkdirSync(join(D, 'theme-firefly', 'wallpapers'), { recursive: true });
-writeFileSync(join(D, 'theme-firefly', 'wallpapers', 'custom-demo123.mp4'), 'demo-content', 'utf8');
-writeFileSync(join(D, 'theme-firefly', 'wallpapers', '.labels.json'), JSON.stringify({ 'custom-demo123': '演示壁纸' }), 'utf8');
+mkdirSync(join(D, 'theme-mediascape', 'wallpapers'), { recursive: true });
+writeFileSync(join(D, 'theme-mediascape', 'wallpapers', 'custom-demo123.mp4'), 'demo-content', 'utf8');
+writeFileSync(join(D, 'theme-mediascape', 'wallpapers', '.labels.json'), JSON.stringify({ 'custom-demo123': '演示壁纸' }), 'utf8');
 
 // ── 3) GET wallpapers/list ──
 {

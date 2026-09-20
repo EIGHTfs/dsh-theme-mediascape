@@ -8,9 +8,9 @@ process.env.DSH_HOME = HOME;
 const { mkdirSync, writeFileSync, rmSync } = await import('node:fs');
 const { join } = await import('node:path');
 rmSync(HOME, { recursive: true, force: true });
-mkdirSync(join(HOME, 'theme-firefly', 'wallpapers'), { recursive: true });
-writeFileSync(join(HOME, 'theme-firefly', 'wallpapers', '.labels.json'), JSON.stringify({ 'custom-abc12345': '测试壁纸' }), 'utf8');
-writeFileSync(join(HOME, 'theme-firefly', 'wallpapers', 'custom-abc12345.mp4'), 'demo-content-123', 'utf8');
+mkdirSync(join(HOME, 'theme-mediascape', 'wallpapers'), { recursive: true });
+writeFileSync(join(HOME, 'theme-mediascape', 'wallpapers', '.labels.json'), JSON.stringify({ 'custom-abc12345': '测试壁纸' }), 'utf8');
+writeFileSync(join(HOME, 'theme-mediascape', 'wallpapers', 'custom-abc12345.mp4'), 'demo-content-123', 'utf8');
 
 const ROOT = '/volume1/VirtualDSM/DeepSeekHarness/工作区/dsh-theme-mediascape';
 // 旧版需先还原单文件：git show HEAD:lib/index.js > /tmp/ms-old-lib/old-index.mjs

@@ -16,7 +16,7 @@
  *     - /theme-mediascape-assets/* 全部转发到 DSH 真实后端（默认 http://127.0.0.1:30800）
  *       并自动完成 token 认证（GET /?token= → 拿 dsh-auth cookie → 后续请求带 cookie）。
  *   因此预览里的壁纸列表 / 上传 / 删除 / 素材加载，全部是真后端数据：
- *   上传的视频真实写入 DSH 的 $DSH_HOME/theme-firefly/wallpapers/，刷新/重启都在。
+ *   上传的视频真实写入 DSH 的 $DSH_HOME/theme-mediascape/wallpapers/，刷新/重启都在。
  *
  * token 获取优先级：--token 参数 > 环境变量 DSH_PREVIEW_TOKEN > 自动读 dsh-proxy.log（
  * 解析最近一次 ?token= 值，非侵入只读）。
@@ -150,10 +150,10 @@ function serveFile(res, file) {
   createReadStream(file).pipe(res);
 }
 
-// ── 真实用户壁纸目录（与 lib/index.js wallpaperDir 同推导：$DSH_HOME/theme-firefly/wallpapers） ──
+// ── 真实用户壁纸目录（与 lib/index.js wallpaperDir 同推导：$DSH_HOME/theme-mediascape/wallpapers） ──
 function wallpaperDir() {
   const base = process.env.DSH_HOME || join(os.homedir(), '.dsh');
-  return join(base, 'theme-firefly', 'wallpapers');
+  return join(base, 'theme-mediascape', 'wallpapers');
 }
 const LABELS_FILE = '.labels.json';
 const ALLOWED_UPLOAD_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4']);
@@ -322,7 +322,7 @@ server.listen(PORT, '0.0.0.0', async () => {
   console.log('  预览页:  http://127.0.0.1:' + PORT + '/');
   console.log('  后端:    ' + TARGET + '（upload/DELETE 写操作转发；素材与列表本地直供，不依赖主实例重启）');
   console.log('  token:   ' + (token ? '已自动获取（' + token.slice(0, 8) + '…）' : '⚠ 未找到，上传/列表将不可用（用 --token 指定）'));
-  console.log('  数据库:  真实 DSH $DSH_HOME/theme-firefly/wallpapers/（非独立目录）');
+  console.log('  数据库:  真实 DSH $DSH_HOME/theme-mediascape/wallpapers/（非独立目录）');
   console.log('  停止: Ctrl+C');
   await openBrowser();
 });
