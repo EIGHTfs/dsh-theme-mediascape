@@ -34,6 +34,9 @@ const PART_ORDER = [
 ];
 const clientPath = path.join(root, "lib", "client.js");
 const assetsDir = path.join(root, "assets");
+// 上传 accept 复用服务端 config.js（单一权威）：require(esm)（Node ≥22.12 支持）加载，
+// 允许扩展名只改 lib/config.js 一处，客户端选择器与服务端校验自动同步。
+const { UPLOAD_ACCEPT } = require(path.join(root, "lib", "config.js"));
 
 /** 资产外置 URL（相对同源，经反代转发到 30801 webServer 的静态路由）。 */
 function assetUrl(rel) {
@@ -180,29 +183,33 @@ if (fs.existsSync(figureDir)) {
 let src = PART_ORDER.map((name) => fs.readFileSync(path.join(partsDir, name), "utf8")).join("");
 const manifestJson = JSON.stringify(manifest);
 src = src.replace(
-  /\/\*__FIREFLY_BG_MANIFEST_START__\*\/[\s\S]*?\/\*__FIREFLY_BG_MANIFEST_END__\*\//,
-  `/*__FIREFLY_BG_MANIFEST_START__*/${manifestJson}/*__FIREFLY_BG_MANIFEST_END__*/`
+  /\/\*__BG_MANIFEST_START__\*\/[\s\S]*?\/\*__BG_MANIFEST_END__\*\//,
+  `/*__BG_MANIFEST_START__*/${manifestJson}/*__BG_MANIFEST_END__*/`
 );
 src = src.replace(
-  /\/\*__FIREFLY_GIF_START__\*\/[\s\S]*?\/\*__FIREFLY_GIF_END__\*\//,
-  `/*__FIREFLY_GIF_START__*/${JSON.stringify(gifUri)}/*__FIREFLY_GIF_END__*/`
+  /\/\*__GIF_START__\*\/[\s\S]*?\/\*__GIF_END__\*\//,
+  `/*__GIF_START__*/${JSON.stringify(gifUri)}/*__GIF_END__*/`
 );
 if (musicManifest.length > 0) {
   src = src.replace(
-    /\/\*__FIREFLY_MUSIC_START__\*\/[\s\S]*?\/\*__FIREFLY_MUSIC_END__\*\//,
-    `/*__FIREFLY_MUSIC_START__*/${JSON.stringify(musicManifest)}/*__FIREFLY_MUSIC_END__*/`
+    /\/\*__MUSIC_START__\*\/[\s\S]*?\/\*__MUSIC_END__\*\//,
+    `/*__MUSIC_START__*/${JSON.stringify(musicManifest)}/*__MUSIC_END__*/`
   );
 }
 // 表情包注入段已停用（2026-09-20）：emoteManifest 不再收集，EMOTES 保持空数组死代码。
 // if (emoteManifest.length > 0) {
 //   src = src.replace(
-//     /\/\*__FIREFLY_EMOTES_START__\*\/[\s\S]*?\/\*__FIREFLY_EMOTES_END__\*\//,
-//     `/*__FIREFLY_EMOTES_START__*/${JSON.stringify(emoteManifest)}/*__FIREFLY_EMOTES_END__*/`
+//     /\/\*__EMOTES_START__\*\/[\s\S]*?\/\*__EMOTES_END__\*\//,
+//     `/*__EMOTES_START__*/${JSON.stringify(emoteManifest)}/*__EMOTES_END__*/`
 //   );
 // }
 src = src.replace(
-  /\/\*__FIREFLY_DEFAULT_COVER_START__\*\/[\s\S]*?\/\*__FIREFLY_DEFAULT_COVER_END__\*\//,
-  `/*__FIREFLY_DEFAULT_COVER_START__*/${JSON.stringify(defaultCoverUri)}/*__FIREFLY_DEFAULT_COVER_END__*/`
+  /\/\*__DEFAULT_COVER_START__\*\/[\s\S]*?\/\*__DEFAULT_COVER_END__\*\//,
+  `/*__DEFAULT_COVER_START__*/${JSON.stringify(defaultCoverUri)}/*__DEFAULT_COVER_END__*/`
+);
+src = src.replace(
+  /\/\*__UPLOAD_ACCEPT_START__\*\/[\s\S]*?\/\*__UPLOAD_ACCEPT_END__\*\//,
+  `/*__UPLOAD_ACCEPT_START__*/${JSON.stringify(UPLOAD_ACCEPT)}/*__UPLOAD_ACCEPT_END__*/`
 );
 fs.writeFileSync(clientPath, src);
 console.log(`OK: built lib/client.js = ${(src.length / 1048576).toFixed(1)} MB`);
