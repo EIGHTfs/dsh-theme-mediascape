@@ -19,7 +19,7 @@ const partsDir = path.join(root, "lib", "client-parts");
 const PART_ORDER = [
   // foundation：基础支撑（最先声明，被所有片段引用）
   "foundation/loader.js", "foundation/constants.js", "foundation/utils.js",
-  "foundation/tokens.js", "foundation/assets.js",
+  "foundation/tokens.js", "foundation/theme.js", "foundation/assets.js",
   // scenes：视觉表现（身份 CSS / 开屏 / 壁纸 / 萤火）
   "scenes/identity.js", "scenes/boot.js", "scenes/wallpaper.js",
   "scenes/upload.js", "scenes/ambience.js",
