@@ -1,23 +1,25 @@
-/* 流萤（暂存对照）基底 — 内置基底 css（对照页 /api/theme-bases 动态读取，勿手改 JS 写死） */
+/* 流萤（原基底） — 内置基底 css（对照页 /api/theme-bases 动态读取） */
+/* 配色取自 git 历史提交 f06dad1（a4e5ce1「知更鸟替换流萤」的父提交）identity.js/tokens.js 权威值：
+   深空海军蓝黑 × 萤火虫青绿（#7dff9e / #00e676 / #00ff87）× 莹白文字 */
 :root {
-  --swatch-label: "流萤（暂存对照）";
-  --swatch-badge: "暂存";
-  --swatch-bg: #0d1420;
-  --swatch-bgSoft: #101020;
-  --swatch-bgLayer: #16283f;
-  /* 流萤 6 色（萤火虫霓虹，仅对照不启用） */
-  --swatch-skin: #eafff3;
-  --swatch-hair: #a9c9b9;
-  --swatch-eye: #00e676;
-  --swatch-white: #f0f0f5;
-  --swatch-purple: #7dff9e;
-  --swatch-gold: #ffd93b;
-  /* 组件样式色（缺省按 6 色映射） */
-  --swatch-btn-primary: #00e676;
-  --swatch-btn-secondary: #7dff9e;
-  --swatch-chip-active: #ffd93b;
-  --swatch-text-primary: #eafff3;
-  --swatch-text-dim: #a9c9b9;
-  --swatch-text-tertiary: #6f8a7c;
-  --swatch-gold-glow: #ffd93b;
+  --swatch-label: "流萤（原基底）";
+  --swatch-badge: "原配色";
+  --swatch-bg: #050A14;
+  --swatch-bgSoft: #0A101E;
+  --swatch-bgLayer: #0D1525;
+  /* 流萤 6 色（对照页语义 × 原 identity/tokens 权威值） */
+  --swatch-skin: #EAFFF3;      /* 肤色→主文字（原 --ff-theme-text 234,255,243） */
+  --swatch-hair: #A9C9B9;      /* 发色→次文字（原 label-secondary） */
+  --swatch-eye: #7DFF9E;       /* 瞳色→主强调/品牌（原 --ff-theme-accent 125,255,158） */
+  --swatch-white: #06240F;     /* 礼服灰白→对比按钮文字（原 label-primary-foreground 深绿黑） */
+  --swatch-purple: #00E676;    /* 礼服紫→按钮/装饰（原 --ff-theme-accent-soft 0,230,118） */
+  --swatch-gold: #FFD93B;      /* 点缀金→边框/高亮（原 warn 萤火金黄） */
+  /* 组件样式色（缺省按 6 色映射，与对照页 comps 一致） */
+  --swatch-btn-primary: #00E676;
+  --swatch-btn-secondary: #7DFF9E;
+  --swatch-chip-active: #7DFF9E;
+  --swatch-text-primary: #EAFFF3;
+  --swatch-text-dim: #A9C9B9;
+  --swatch-text-tertiary: #6F8A7C;
+  --swatch-gold-glow: #FFD93B;
 }
