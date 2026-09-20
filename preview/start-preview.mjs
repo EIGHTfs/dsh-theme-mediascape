@@ -23,7 +23,7 @@
  */
 import { createServer } from 'node:http';
 import { request as httpRequest } from 'node:http';
-import { createReadStream, existsSync, statSync, readFileSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readFileSync, readdirSync } from 'node:fs';
 import { join, normalize, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -148,6 +148,70 @@ function serveFile(res, file) {
   createReadStream(file).pipe(res);
 }
 
+// ── 真实用户壁纸目录（与 lib/index.js wallpaperDir 同推导：$DSH_HOME/theme-firefly/wallpapers） ──
+function wallpaperDir() {
+  const base = process.env.DSH_HOME || join(os.homedir(), '.dsh');
+  return join(base, 'theme-firefly', 'wallpapers');
+}
+const LABELS_FILE = '.labels.json';
+const ALLOWED_UPLOAD_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4']);
+
+/** 读 labels 映射（{ "custom-xxx": "原始文件名去扩展名" }），读不到/解析失败返回空对象。 */
+function loadLabels() {
+  try {
+    const p = join(wallpaperDir(), LABELS_FILE);
+    if (!existsSync(p)) return {};
+    return JSON.parse(readFileSync(p, 'utf8'));
+  } catch { return {}; }
+}
+
+/** 本地列出用户壁纸（读真实数据目录 + labels），与后端 handleList 返回结构一致。 */
+function handleListLocal(res) {
+  try {
+    const dir = wallpaperDir();
+    if (!existsSync(dir)) {
+      send(res, 200, JSON.stringify({ ok: true, items: [] }), 'application/json; charset=utf-8');
+      return;
+    }
+    const labels = loadLabels();
+    const items = readdirSync(dir)
+      .filter((f) => !f.startsWith('.trash-') && f !== LABELS_FILE && ALLOWED_UPLOAD_EXT.has(extname(f).toLowerCase()))
+      .map((f) => {
+        const ext = extname(f).toLowerCase();
+        const id = f.replace(/\.[^.]+$/, '');
+        return {
+          id,
+          kind: ext === '.mp4' ? 'video' : 'image',
+          label: labels[id] || f.replace(/\.[^.]+$/, ''),
+          url: '/theme-mediascape-assets/wallpapers/' + encodeURIComponent(f),
+        };
+      })
+      .sort((a, b) => (a.id < b.id ? -1 : 1));
+    send(res, 200, JSON.stringify({ ok: true, items }), 'application/json; charset=utf-8');
+  } catch (e) {
+    send(res, 500, JSON.stringify({ ok: false, error: String(e?.message ?? e) }), 'application/json; charset=utf-8');
+  }
+}
+
+/** 本地服务插件根目录下的静态素材（assets/、GIF/、music/）。 */
+function serveAssetLocal(res, pathname) {
+  const rel = pathname.replace(/^\/theme-mediascape-assets\//, '');   // assets/xxx...
+  const top = rel.split('/')[0];
+  if (top !== 'assets' && top !== 'GIF' && top !== 'music') { send(res, 404, 'not found'); return; }
+  const file = normalize(join(THEME_ROOT, rel));
+  if (!file.startsWith(join(THEME_ROOT, top))) { send(res, 403, 'forbidden'); return; }
+  serveFile(res, file);
+}
+
+/** 本地服务用户上传壁纸（真实数据目录 wallpapers/<file>）。 */
+function serveWallpaperLocal(res, pathname) {
+  const rel = pathname.replace(/^\/theme-mediascape-assets\/wallpapers\//, '');
+  if (!rel || rel.includes('/') || rel.startsWith('.trash-') || rel === LABELS_FILE) { send(res, 404, 'not found'); return; }
+  const file = normalize(join(wallpaperDir(), rel));
+  if (!file.startsWith(wallpaperDir())) { send(res, 403, 'forbidden'); return; }
+  serveFile(res, file);
+}
+
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   const pathname = decodeURIComponent(url.pathname);
@@ -162,12 +226,33 @@ const server = createServer((req, res) => {
     send(res, 403, 'forbidden'); return;
   }
 
-  // /theme-mediascape-assets/* → 真实 DSH 后端（含 upload / list / DELETE / 静态素材）
+  // /theme-mediascape-assets/* → 静态素材本地直供（不依赖 DSH 主实例已加载主题）；
+  //   仅 list 也本地（读真实数据目录 + labels，重启前即可看用户壁纸）；
+  //   upload / DELETE 等写操作才转发真实后端。
   if (pathname.startsWith('/theme-mediascape-assets/')) {
-    const upstreamPath = req.url; // 原样转发（保留 query：?name= 等）
     if (req.method === 'GET' && pathname === '/theme-mediascape-assets/ping') {
       send(res, 200, 'pong', 'text/plain'); return;
     }
+    // 壁纸列表：本地实现（与后端 handleList 同结构），主实例不重启也能看到用户上传的壁纸
+    if (req.method === 'GET' && pathname === '/theme-mediascape-assets/wallpapers/list') {
+      console.log('[local] list', pathname);
+      handleListLocal(res);
+      return;
+    }
+    // 静态素材（assets/ GIF/ music/）本地直供
+    if (req.method === 'GET' && /^\/theme-mediascape-assets\/(assets|GIF|music)\//.test(pathname)) {
+      console.log('[local] asset GET', pathname);
+      serveAssetLocal(res, pathname);
+      return;
+    }
+    // 用户上传壁纸文件（wallpapers/<file>，非 list）本地直供
+    if (req.method === 'GET' && /^\/theme-mediascape-assets\/wallpapers\/[^/]+$/.test(pathname) && !pathname.endsWith('/list')) {
+      console.log('[local] wallpaper GET', pathname);
+      serveWallpaperLocal(res, pathname);
+      return;
+    }
+    // 其余（upload / DELETE 等写操作）→ 真实后端
+    const upstreamPath = req.url; // 原样转发（保留 query：?name= 等）
     proxyToDsh(req, res, upstreamPath);
     return;
   }
@@ -205,7 +290,7 @@ server.listen(PORT, '0.0.0.0', async () => {
   console.log('║  dsh-theme-mediascape 悬浮框预览（接真实后端）        ║');
   console.log('╚══════════════════════════════════════════════════╝');
   console.log('  预览页:  http://127.0.0.1:' + PORT + '/');
-  console.log('  后端:    ' + TARGET + '（/theme-mediascape-assets/* 真实转发）');
+  console.log('  后端:    ' + TARGET + '（upload/DELETE 写操作转发；素材与列表本地直供，不依赖主实例重启）');
   console.log('  token:   ' + (token ? '已自动获取（' + token.slice(0, 8) + '…）' : '⚠ 未找到，上传/列表将不可用（用 --token 指定）'));
   console.log('  数据库:  真实 DSH $DSH_HOME/theme-firefly/wallpapers/（非独立目录）');
   console.log('  停止: Ctrl+C');
