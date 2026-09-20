@@ -1,0 +1,9 @@
+╔══════════════════════════════════════════════════╗
+║  dsh-theme-mediascape 悬浮框预览（接真实后端）        ║
+╚══════════════════════════════════════════════════╝
+  预览页:  http://127.0.0.1:30999/
+  后端:    http://127.0.0.1:30800（upload/DELETE 写操作转发；素材与列表本地直供，不依赖主实例重启）
+  token:   已自动获取（O3FlDa2K…）
+  数据库:  真实 DSH $DSH_HOME/theme-firefly/wallpapers/（非独立目录）
+  停止: Ctrl+C
+[local] list /theme-mediascape-assets/wallpapers/list
