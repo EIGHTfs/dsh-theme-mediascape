@@ -32,32 +32,20 @@
   .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .comp { border-radius: 8px; cursor: pointer; transition: transform .08s; position: relative; }
   .comp:hover { outline: 2px dashed rgba(212,175,55,.5); outline-offset: 2px; }
-  .comp.clicked::after { content: '✓ 点击换色'; position: absolute; top: -18px; right: 0; font-size: 10px; color: #d4af37; background: rgba(10,10,18,.85); padding: 1px 6px; border-radius: 6px; }
+  .comp:active { transform: scale(.96); }
   .btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; border: 1px solid transparent; }
   .chip { padding: 4px 12px; border-radius: 999px; font-size: 12px; }
   .card { border-radius: 12px; padding: 14px; font-size: 13px; line-height: 1.7; }
   .text-primary { font-size: 14px; }
   .text-dim { font-size: 13px; }
   .note { margin-top: 22px; font-size: 12px; color: #8a86a0; line-height: 1.8; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
-  /* 选色器浮层 */
-  .picker { position: fixed; z-index: 99; background: #16122a; border: 1px solid rgba(212,175,55,.4); border-radius: 12px; padding: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); width: 260px; display: none; }
-  .picker.open { display: block; }
-  .picker h4 { font-size: 12px; margin-bottom: 8px; color: #b8b4c8; }
-  .picker .colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .picker .c { height: 40px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; display: flex; align-items: flex-end; justify-content: center; font-size: 10px; padding-bottom: 3px; }
-  .picker .c:hover { border-color: #fff; }
-  .picker .c.active { border-color: #d4af37; }
-  .picker .custom { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a86a0; }
-  .picker .custom input[type=color] { width: 34px; height: 26px; border: none; background: transparent; cursor: pointer; }
-  .picker .custom input[type=text] { flex: 1; background: #100c1c; border: 1px solid rgba(255,255,255,.15); color: #e8e6f0; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-family: monospace; }
-  .picker .close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: #8a86a0; font-size: 13px; }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20,16,30,.95); border: 1px solid rgba(107,142,90,.5); color: #fdf0fa; padding: 8px 18px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 999; }
   .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 <h1>🎨 dsh-theme-mediascape · 配色对照（可交互）</h1>
-<div class="sub">左右下拉框自由选基底对比；组件模拟区点击任意元素 → 弹出 6 色选色器（或自定义色）实时换色；「导出 CSS」把当前两列配置落盘 preview/generated/</div>
+<div class="sub">左右下拉框自由选基底对比；组件模拟区点击任意元素 → 在知更鸟 6 色中循环换色；「导出 CSS」把当前两列配置落盘 preview/generated/</div>
 
 <div class="toolbar">
   <div class="pick">左基底 <select id="pickL"></select></div>
@@ -73,15 +61,6 @@
 
 <div class="note" id="note"></div>
 
-<div class="picker" id="picker">
-  <span class="close" id="pickClose">✕</span>
-  <h4 id="pickTitle">选择颜色</h4>
-  <div class="colors" id="pickColors"></div>
-  <div class="custom">
-    <input type="color" id="pickCustomColor" value="#d4af37">
-    <input type="text" id="pickCustomHex" placeholder="#RRGGBB" maxlength="7">
-  </div>
-</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -188,9 +167,9 @@ function renderCol(side) {
   col.style.background = base.bg;
   col.innerHTML = `
     <h2>${base.label} <span class="badge ${base.badgeClass}">${base.badge}</span>
-      <span class="hint">点击组件换色</span></h2>
+      <span class="hint">点击组件循环换色</span></h2>
     <div class="swatches">${swatchHtml}</div>
-    <div class="sect">组件模拟 <span class="tip">（点击任意元素换色）</span></div>
+    <div class="sect">组件模拟 <span class="tip">（点击任意元素循环 6 色）</span></div>
     <div class="ui">
       <div class="row">${row1}</div>
       <div class="card" style="${base.cardStyle}">${cardComp}</div>
@@ -198,48 +177,30 @@ function renderCol(side) {
   $("note").innerHTML = `<b>${base.label}</b>：${base.note}`;
 }
 
-// ═══════════ 选色器 ═══════════
-let pickTarget = null; // { side, role }
-function openPicker(side, role) {
-  pickTarget = { side, role };
+// ═══════════ 选色：6 色循环 ═══════════
+// 点击组件 → 在知更鸟 6 色（ROBIN6）中循环切换；背景类组件换 background+对比文字色，文字类换 color。
+function cycleColor(side, role) {
   const comp = state[side].comps[role];
-  const cur = /#([0-9a-f]{6})/i.exec(comp.style.replace(/rgba?\([^)]*\)/g, ""))?.[0] || "#8A6D9B";
-  $("pickTitle").textContent = `选择颜色 · ${role}（${side} 列）`;
-  const colorsHtml = ROBIN6.map((s) =>
-    `<div class="c ${s.hex.toUpperCase() === String(cur).toUpperCase() ? "active" : ""}" data-hex="${s.hex}" style="background:${s.hex};color:${textColorFor(s.hex)}">${s.name}</div>`
-  ).join("");
-  $("pickColors").innerHTML = colorsHtml;
-  $("pickCustomColor").value = cur;
-  $("pickCustomHex").value = cur.toUpperCase();
-  $("picker").classList.add("open");
-  positionPicker();
-}
-function closePicker() { $("picker").classList.remove("open"); pickTarget = null; }
-function positionPicker() {
-  // 简单居中放置（组件位置复杂，居中即可用）
-  const p = $("picker");
-  p.style.left = "50%"; p.style.top = "40%"; p.style.transform = "translate(-50%, -50%)";
-}
-function applyColor(hex) {
-  if (!pickTarget) return;
-  const { side, role } = pickTarget;
-  const comp = state[side].comps[role];
-  // 对 btn/chip 替换 background；对文字替换 color；gold-glow 同时替换 text-shadow 基色
+  const curHex = /#([0-9a-fA-F]{6})/i.exec(comp.style)?.[0]?.toUpperCase() || "";
+  let idx = ROBIN6.findIndex((s) => s.hex.toUpperCase() === curHex);
+  idx = (idx + 1) % ROBIN6.length; // 找不到（自定义色）→ 从第 0 个开始
+  const hex = ROBIN6[idx].hex;
   const tc = textColorFor(hex);
   let style = comp.style;
   if (/background:/.test(style)) {
+    // 背景类：换 background + 文字对比色
     style = style.replace(/background:[^;]+;?/, `background:${hex};`);
-    if (/color:#/.test(style)) style = style.replace(/color:#[0-9a-fA-F]{6}/, `color:${tc}`);
+    if (/color:#[0-9a-fA-F]{6}/.test(style)) style = style.replace(/color:#[0-9a-fA-F]{6}/, `color:${tc}`);
   } else {
+    // 文字类：换 color
     style = style.replace(/color:#[0-9a-fA-F]{6}/, `color:${hex}`);
   }
   if (/text-shadow/.test(style) && hexToRgb(hex)) {
     style = style.replace(/rgba\([^)]*,\s*0\.5\)/, withAlpha(hex, 0.5));
   }
   comp.style = style;
-  closePicker();
   renderCol(side);
-  toast(`已应用 ${hex} → ${role}`);
+  toast(`${ROBIN6[idx].name} ${hex} → ${role}`);
 }
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.add("show");
@@ -256,20 +217,7 @@ function initSelects() {
 }
 document.addEventListener("click", (e) => {
   const comp = e.target.closest(".comp");
-  if (comp) { openPicker(comp.dataset.side, comp.dataset.role); return; }
-  const color = e.target.closest(".c");
-  if (color) { applyColor(color.dataset.hex); return; }
-  if (!e.target.closest(".picker")) closePicker();
-});
-$("pickClose").addEventListener("click", closePicker);
-$("pickCustomColor").addEventListener("input", (e) => { $("pickCustomHex").value = e.target.value.toUpperCase(); });
-$("pickCustomHex").addEventListener("change", (e) => {
-  const v = e.target.value.trim();
-  if (/^#?[0-9a-fA-F]{6}$/.test(v)) {
-    const hex = (v.startsWith("#") ? v : "#" + v).toUpperCase();
-    $("pickCustomColor").value = hex;
-    applyColor(hex);
-  } else { toast("色值格式错误，需 #RRGGBB"); }
+  if (comp) { cycleColor(comp.dataset.side, comp.dataset.role); return; }
 });
 $("btnReset").addEventListener("click", () => { state.L.comps = {}; state.R.comps = {}; renderCol("L"); renderCol("R"); toast("已重置默认配色"); });
 
