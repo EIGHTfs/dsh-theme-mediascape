@@ -12,14 +12,25 @@ const fs = require("fs");
 const path = require("path");
 
 const root = __dirname;
-// 浏览器端模板已按职责拆分为 lib/parts/*.js（见 scripts/split-template.py），
-// 本脚本按固定顺序拼接回完整模板再注入素材清单——顺序不变则产物与拆分前逐字节一致。
-const partsDir = path.join(root, "lib", "parts");
+// 浏览器端模板已按职责拆分为 lib/client-parts/ 下的片段（foundation 基础 / scenes 视觉 /
+// sound 音频 / secrets 彩蛋 / toolbar 组件 + apply 入口），本脚本按固定顺序拼接回完整模板
+// 再注入素材清单——顺序不变则产物与拆分前逐字节一致。
+const partsDir = path.join(root, "lib", "client-parts");
 const PART_ORDER = [
-  "00-head.js", "01-constants.js", "02-tools.js", "03-tokens.js", "04-assets.js",
-  "05-identity-css.js", "06-boot.js", "07-wallpaper.js", "08-wallpaper-upload.js",
-  "09-ambience.js", "10-typesound.js", "11-music-parts.js", "12-music-player.js",
-  "13-emotes.js", "14-egg.js", "15-dock.js", "16-apply.js",
+  // foundation：基础支撑（最先声明，被所有片段引用）
+  "foundation/loader.js", "foundation/constants.js", "foundation/utils.js",
+  "foundation/tokens.js", "foundation/assets.js",
+  // scenes：视觉表现（身份 CSS / 开屏 / 壁纸 / 萤火）
+  "scenes/identity.js", "scenes/boot.js", "scenes/wallpaper.js",
+  "scenes/upload.js", "scenes/ambience.js",
+  // sound：音频（打字音效 / 封面提取 / 播放器）
+  "sound/typesound.js", "sound/music-extract.js", "sound/music-player.js",
+  // secrets：彩蛋区（表情包死代码 / SAM 彩蛋）
+  "secrets/emotes.js", "secrets/egg.js",
+  // toolbar：组件（可拖动工具条）
+  "toolbar/dock.js",
+  // 入口
+  "apply.js",
 ];
 const clientPath = path.join(root, "lib", "client.js");
 const assetsDir = path.join(root, "assets");
@@ -151,7 +162,7 @@ if (fs.existsSync(figureDir)) {
 }
 
 // ── 3.5) 表情包（已停用 2026-09-20：运行时不再注入/引用，代码保留为死代码；GIF/表情包/ 文件保留）──
-// 若日后恢复：取消下方注释，并在 lib/parts/13-emotes.js 恢复 startEmotes() 调用与 EMOTES 依赖。
+// 若日后恢复：取消下方注释，并在 lib/client-parts/secrets/emotes.js 恢复 startEmotes() 调用与 EMOTES 依赖。
 // const emoteDir = path.join(gifDir, "表情包");
 // const emoteManifest = [];
 // if (fs.existsSync(emoteDir)) {
