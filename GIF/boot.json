@@ -1,0 +1,5 @@
+{
+  "_comment": "开屏启动页动画配置。file=GIF/ 目录下的 gif 文件名；durationMs=自动淡出时长（毫秒，默认 10000）。改配置刷新即生效，无需重新 build。",
+  "file": "4bfecb05efaf200d824e5bfc1d32c81d_3933947712892826932.gif",
+  "durationMs": 10000
+}

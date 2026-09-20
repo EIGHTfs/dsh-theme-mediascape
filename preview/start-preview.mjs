@@ -40,6 +40,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
   '.gif': 'image/gif', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.wav': 'audio/wav',
+  '.json': 'application/json; charset=utf-8',
 };
 
 // ── CLI 参数 ──
@@ -79,6 +80,7 @@ async function ensureAuthCookie() {
   // GET /?token=xxx → 303 + Set-Cookie
   return new Promise((resolve) => {
     const target = new URL(TARGET);
+    // dsh-skip-sensitive（token 来自 --token 参数/环境变量/日志兜底，运行时解析，非硬编码凭据）
     const req = httpRequest({
       hostname: target.hostname, port: target.port, path: '/?token=' + encodeURIComponent(token), method: 'GET',
       headers: { host: target.host, connection: 'close' }, // 强制新连接，避免复用反代坏 keep-alive
@@ -165,7 +167,7 @@ function loadLabels() {
   } catch { return {}; }
 }
 
-/** 本地列出用户壁纸（读真实数据目录 + labels），与后端 handleList 返回结构一致。 */
+/** 本地列出用户壁纸（读真实数据目录 + labels）+ 在线下载资源（wallpapers/online/），与后端 handleList 结构一致。 */
 function handleListLocal(res) {
   try {
     const dir = wallpaperDir();
@@ -187,6 +189,30 @@ function handleListLocal(res) {
         };
       })
       .sort((a, b) => (a.id < b.id ? -1 : 1));
+    // 合并在线下载资源（与后端 handleList 同语义：同 id 顶层优先）
+    const odir = join(dir, 'online');
+    if (existsSync(odir)) {
+      const ids = new Set(items.map((x) => x.id));
+      const online = readdirSync(odir)
+        .filter((f) => !f.startsWith('.trash-') && !f.endsWith('.part') && ALLOWED_UPLOAD_EXT.has(extname(f).toLowerCase()))
+        .filter((f) => {
+          const id = f.replace(/\.[^.]+$/, '');
+          if (ids.has(id)) return false;
+          ids.add(id);
+          return true;
+        })
+        .map((f) => {
+          const ext = extname(f).toLowerCase();
+          const id = f.replace(/\.[^.]+$/, '');
+          return {
+            id,
+            kind: ext === '.mp4' ? 'video' : 'image',
+            label: labels[id] || f.replace(/\.[^.]+$/, ''),
+            url: '/theme-mediascape-assets/wallpapers/online/' + encodeURIComponent(f),
+          };
+        });
+      items.push(...online);
+    }
     send(res, 200, JSON.stringify({ ok: true, items }), 'application/json; charset=utf-8');
   } catch (e) {
     send(res, 500, JSON.stringify({ ok: false, error: String(e?.message ?? e) }), 'application/json; charset=utf-8');
@@ -203,12 +229,16 @@ function serveAssetLocal(res, pathname) {
   serveFile(res, file);
 }
 
-/** 本地服务用户上传壁纸（真实数据目录 wallpapers/<file>）。 */
+/** 本地服务用户上传壁纸（真实数据目录 wallpapers/<file>）与在线资源（wallpapers/online/<file>）。 */
 function serveWallpaperLocal(res, pathname) {
   const rel = pathname.replace(/^\/theme-mediascape-assets\/wallpapers\//, '');
-  if (!rel || rel.includes('/') || rel.startsWith('.trash-') || rel === LABELS_FILE) { send(res, 404, 'not found'); return; }
-  const file = normalize(join(wallpaperDir(), rel));
-  if (!file.startsWith(wallpaperDir())) { send(res, 403, 'forbidden'); return; }
+  // 允许 顶层文件 或 online/<file>（在线下载资源子目录）；禁止深层穿越/回收/labels
+  const isOnline = rel.startsWith('online/');
+  const name = isOnline ? rel.slice('online/'.length) : rel;
+  if (!name || name.includes('/') || name.startsWith('.trash-') || name === LABELS_FILE) { send(res, 404, 'not found'); return; }
+  const base = isOnline ? join(wallpaperDir(), 'online') : wallpaperDir();
+  const file = normalize(join(base, name));
+  if (!file.startsWith(base)) { send(res, 403, 'forbidden'); return; }
   serveFile(res, file);
 }
 

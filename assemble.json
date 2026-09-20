@@ -1,0 +1,13 @@
+{
+  "_comment": [
+    "dsh-theme-mediascape 的下发清单：仅从 dl-server-template 模板下发预览服务器启停脚本。",
+    "  键 = 模板仓库内相对路径（server/lib/preview/start.sh，模板根为基准）",
+    "  值 = 本项目相对路径（start.sh，相对本项目根）",
+    "  下发方式：cd <dl-server-template> && ./setup.sh --to <本项目>/assemble.json",
+    "  init:false —— 本项目不是 server 系项目，跳过蓝图骨架初始化（不补 app.js/config.schema.json）",
+    "  src!=dst 为组装产出，不参与 --pull 回流（模板改 start.sh 后需重新 --to 下发）"
+  ],
+  "files": {
+    "server/lib/preview/start.sh": "start.sh"
+  }
+}

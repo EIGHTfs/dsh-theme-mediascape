@@ -1,12 +1,13 @@
 /**
  * 构建脚本：把 assets/ 下所有壁纸（图片 + mp4 动态壁纸）与 GIF/ 下的开屏动图、
- * music/ 音乐、封面、表情包以「外置 URL 清单」注入 lib/client.js。
+ * music/ 音乐、封面以「外置 URL 清单」注入 lib/client.js。
  * 资产本体不内联，由服务端半（lib/index.js）经 /theme-mediascape-assets/<相对路径>
  * 静态提供——避免 base64 内联把 client.js 撑到 82MB（导致 client-modules
  * 聚合 95MB、浏览器 Failed to load plugins）。
  * 用法：node build.cjs
  * 幂等：用注释标记包裹数据段，重复运行会替换掉上一次注入的内容。
  */
+// Node 侧构建脚本（非浏览器 client 半部），require 内建模块为正常用法
 const fs = require("fs");
 const path = require("path");
 
@@ -73,14 +74,25 @@ console.log("wallpapers:");
 manifest.forEach((m) => console.log(`  ${m.kind.padEnd(5)} ${m.label}  (file ${sizeMb(path.join(assetsDir, m.label))} MB → ${m.url})`));
 
 // ── 2) 开屏动图 ──
+// 优先读 GIF/boot.json 的 file 字段（显式配置启动页 gif，运行时 fetch 同源配置）；
+// 无 boot.json / 字段非法 → 回退取目录第一个 .gif（历史行为）。
 const gifDir = path.join(root, "GIF");
 const gifs = fs.readdirSync(gifDir).filter((f) => /\.gif$/i.test(f));
-if (gifs.length === 0) {
+let bootGif = null;
+try {
+  const bootPath = path.join(gifDir, "boot.json");
+  if (fs.existsSync(bootPath)) {
+    const bootCfg = JSON.parse(fs.readFileSync(bootPath, "utf8"));
+    if (typeof bootCfg.file === "string" && gifs.includes(bootCfg.file)) bootGif = bootCfg.file;
+  }
+} catch {}
+if (!bootGif) bootGif = gifs[0] || null;
+if (!bootGif) {
   console.error("ERROR: no .gif found in GIF/ directory");
   process.exit(1);
 }
-const gifUri = assetUrl(path.join("GIF", gifs[0]));
-console.log(`boot gif: ${gifs[0]}  (file ${sizeMb(path.join(gifDir, gifs[0]))} MB → ${gifUri})`);
+const gifUri = assetUrl(path.join("GIF", bootGif));
+console.log(`boot gif: ${bootGif}  (file ${sizeMb(path.join(gifDir, bootGif))} MB → ${gifUri})`);
 
 // ── 3) 背景音乐清单：优先「使一颗心免于哀伤」，其余按文件名排序 ──
 const musicDir = path.join(root, "music");
@@ -130,19 +142,20 @@ if (fs.existsSync(figureDir)) {
   console.log("default cover: 无 music/figure/，回退 ♪ 占位");
 }
 
-// ── 3.5) 表情包（隐藏彩蛋）：GIF/表情包/ 下所有 .gif，id 取文件名 ──
-const emoteDir = path.join(gifDir, "表情包");
-const emoteManifest = [];
-if (fs.existsSync(emoteDir)) {
-  emoteManifest.push(...fs.readdirSync(emoteDir).filter((f) => /\.gif$/i.test(f)).sort((a, b) => a.localeCompare(b, "zh")).map((f) => ({
-    id: f.replace(/\.[^.]+$/, ""),
-    mime: "image/gif",
-    url: assetUrl(path.join("GIF", "表情包", f)),
-    label: f.replace(/\.[^.]+$/, ""),
-  })));
-}
-console.log("emotes:");
-emoteManifest.forEach((e) => console.log(`  ${e.id}  (file ${sizeMb(path.join(emoteDir, e.label + ".gif"))} MB → ${e.url})`));
+// ── 3.5) 表情包（已停用 2026-09-20：运行时不再注入/引用，代码保留为死代码；GIF/表情包/ 文件保留）──
+// 若日后恢复：取消下方注释，并在 client.template.js 恢复 startEmotes() 调用与 EMOTES 依赖。
+// const emoteDir = path.join(gifDir, "表情包");
+// const emoteManifest = [];
+// if (fs.existsSync(emoteDir)) {
+//   emoteManifest.push(...fs.readdirSync(emoteDir).filter((f) => /\.gif$/i.test(f)).sort((a, b) => a.localeCompare(b, "zh")).map((f) => ({
+//     id: f.replace(/\.[^.]+$/, ""),
+//     mime: "image/gif",
+//     url: assetUrl(path.join("GIF", "表情包", f)),
+//     label: f.replace(/\.[^.]+$/, ""),
+//   })));
+// }
+// console.log("emotes:");
+// emoteManifest.forEach((e) => console.log(`  ${e.id}  (file ${sizeMb(path.join(emoteDir, e.label + ".gif"))} MB → ${e.url})`));
 
 // ── 4) 注入 ──
 let src = fs.readFileSync(templatePath, "utf8");
@@ -161,12 +174,13 @@ if (musicManifest.length > 0) {
     `/*__FIREFLY_MUSIC_START__*/${JSON.stringify(musicManifest)}/*__FIREFLY_MUSIC_END__*/`
   );
 }
-if (emoteManifest.length > 0) {
-  src = src.replace(
-    /\/\*__FIREFLY_EMOTES_START__\*\/[\s\S]*?\/\*__FIREFLY_EMOTES_END__\*\//,
-    `/*__FIREFLY_EMOTES_START__*/${JSON.stringify(emoteManifest)}/*__FIREFLY_EMOTES_END__*/`
-  );
-}
+// 表情包注入段已停用（2026-09-20）：emoteManifest 不再收集，EMOTES 保持空数组死代码。
+// if (emoteManifest.length > 0) {
+//   src = src.replace(
+//     /\/\*__FIREFLY_EMOTES_START__\*\/[\s\S]*?\/\*__FIREFLY_EMOTES_END__\*\//,
+//     `/*__FIREFLY_EMOTES_START__*/${JSON.stringify(emoteManifest)}/*__FIREFLY_EMOTES_END__*/`
+//   );
+// }
 src = src.replace(
   /\/\*__FIREFLY_DEFAULT_COVER_START__\*\/[\s\S]*?\/\*__FIREFLY_DEFAULT_COVER_END__\*\//,
   `/*__FIREFLY_DEFAULT_COVER_START__*/${JSON.stringify(defaultCoverUri)}/*__FIREFLY_DEFAULT_COVER_END__*/`

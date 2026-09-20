@@ -19,3 +19,13 @@ Thumbs.db
 # 构建产物：node build.cjs 生成，不提交（prepack 自动构建）
 lib/client.js
 node_modules.orig/
+
+# ── 运行/临时文件（启停脚本 PID、预览日志、回收残留）──
+*.pid
+*.log
+.trash*
+assemble.json.bak
+
+# ── preview/tests 展示目录：.test 目录标记与回收站不提交（验证脚本本身保留）──
+preview/.test
+preview/tests/.trash/

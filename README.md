@@ -23,10 +23,6 @@
 
 ![背景音乐](docs/screenshots/04-music.jpg)
 
-### 表情包彩蛋
-
-![表情包](docs/screenshots/05-emote.jpg)
-
 > 🎬 演示视频（B 站）：
 https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video_card.click&vd_source=573abae8b62b8edf27edc7cb8933e1b6
 
@@ -55,8 +51,8 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 
 ### 开屏变身动画
 
-- 内嵌 GIF 居中淡入，带绿色辉光边框 + 「流萤 // FIREFLY」标题
-- 每次刷新播放，时长跟随 GIF，点击任意处或「点击跳过」可跳过
+- 启动页 GIF（`GIF/boot.json` 配置指定文件）居中淡入，带绿色辉光边框 + 「流萤 // FIREFLY」标题
+- 每次刷新播放，时长取配置（默认 10s），点击任意处或「点击跳过」可跳过
 - 尊重系统 `prefers-reduced-motion`，自动跳过
 
 ### 萤火氛围粒子
@@ -84,12 +80,6 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 ### 彩蛋
 
 - **开屏动画**：输入框发送 **`SAM`** → 重播开屏变身动画（精确匹配，普通消息不误触）
-- **表情包**（`GIF/表情包/` 目录，按对话内容触发，每回合最多一个，右下角弹出）：
-  - 你夸赞时 → 「开心」/「得意」（谢谢/太棒/厉害/绝了…）
-  - 你确认开干时 → 「变身」（开始/开干/动手/走起/冲…）
-  - 我确认时 → 「没错」（没错/正是/确实…）
-  - 我需要你提供时 → 「期待」（发我/提供/给我…）
-  - 我需要你确认时 → 「疑惑」（确认一下/要我…吗/可以吗…）
 
 ---
 
@@ -131,8 +121,8 @@ dsh-theme-mediascape/
 ├── lib/client.template.js  # 浏览器端主题源码（含占位符，随仓库提交）
 ├── lib/client.js           # 构建产物（build.cjs --clean 生成，只含 URL 清单，随仓库提交干净版）
 ├── assets/                 # 壁纸：图片(jpg/png/webp) + mp4 动态壁纸
-├── GIF/                    # 开屏动图（取第一个 .gif）
-│   └── 表情包/             # 表情包 GIF（文件名即触发情绪：开心/得意/变身/没错/期待/疑惑）
+├── GIF/                    # 开屏动图（boot.json 配置指定文件，保留 4bfecb05<…>.gif）
+│   └── boot.json           # 开屏启动页配置（file + durationMs）
 ├── music/                  # 背景音乐（mp3/ogg/m4a/wav），默认第一首「使一颗心免于哀伤」
 │   └── figure/             # 内置歌曲默认封面（取第一张图片，如知更鸟图）
 ├── build.cjs               # 构建：读取 client.template.js，把素材清单（URL）注入 lib/client.js
@@ -197,6 +187,23 @@ dsh plugin --profile web remove dsh-theme-mediascape
 1. **运行时添加（推荐）**：点「景」→「＋ 添加壁纸」，从本机一次多选图片/视频（Ctrl/框选），立即生效并持久化
 2. **打包收录**：把文件放入 `assets/` 后运行 `node build.cjs`（适合预置默认壁纸，素材外置由静态路由提供）
 
+**在线资源**（配置随主题分发，别人拿到主题即可用，无需改代码）：
+
+在 `lib/online-sources.json` 的 `sources` 里按 hash 主键登记即可，主题启动时后台静默下载缺失项到 `wallpapers/online/`，下载完毕自动出现在壁纸列表、可直接选用：
+
+```json
+{
+  "sources": {
+    "<sha1-40位hex>": { "name": "示例视频.mp4", "url": "https://example.com/video.mp4" }
+  }
+}
+```
+
+- **hash**：下载内容的 SHA-1（40 位 hex），同时是去重键与完整性校验（下载后校验一致才落定）
+- **断点续传**：中断保留 `<hash>.<ext>.part`，下次启动从断点继续（Range 请求），校验通过才重命名落定
+- **本地 / 在线共存**：本地上传与在线下载同列表展示；同 hash 内容以本地上传优先
+- 内置 `assets/` 素材保留不动；日后交换在线资源只改配置、不改代码
+
 其余素材（开屏动图、音乐）需通过 `build.cjs` 收录进 `lib/client.js` 的 URL 清单：
 
 ```powershell
@@ -206,7 +213,7 @@ node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里�
 
 - **壁纸**：`assets/` 支持 `.jpg/.jpeg/.png/.webp`（静态）与 `.mp4`（动态）
 - **默认壁纸**：`assets/` 里文件名含 `Default` 的图片会在首次安装（无保存记录）时作为初始壁纸；仓库默认随带 `Default_wallpaper.png`，替换后重新 `node build.cjs --clean` 即可
-- **开屏动图**：`GIF/` 目录取第一个 `.gif`
+- **开屏动图**：`GIF/boot.json` 配置 `file` 指定启动页 gif（默认保留的 `4bfecb05<…>.gif`）、`durationMs` 指定自动淡出时长；改配置刷新即生效（运行时 fetch），无需重新 build
 - **音乐**：`music/` 支持 `.mp3/.ogg/.m4a/.wav`，默认第一首为「使一颗心免于哀伤」；
   `music/figure/` 里第一张图片会作为内置歌曲默认封面；`build.music-exclude.txt` 里列出的
   文件名会在构建时被排除（可留待运行时「＋ 添加歌曲」导入）
@@ -238,6 +245,7 @@ node build.cjs --clean  # 干净构建：只收录 build.include.txt 清单里�
 
 | 版本 | 说明 |
 |---|---|
+| 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |
 | 1.0.0 | 改名迁移：仓库/包名 `dsh-theme-mediascape`（媒体景观主题），插件 ID `theme-mediascape`，全新 init 独立历史；壁纸服务器持久化（动态上限 + 原始文件名保留 + 上传超时/失败提示） |
 
 ## 📄 免责声明
