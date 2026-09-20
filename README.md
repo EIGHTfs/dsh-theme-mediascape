@@ -118,14 +118,14 @@ https://www.bilibili.com/video/BV1nF8B6QEEj/?spm_id_from=333.1387.homepage.video
 ```
 dsh-theme-mediascape/
 ├── package.json            # dsh.client 声明（web 插件，注入 ui-theme 槽位）
-├── lib/index.js            # 服务端入口：注册 /theme-mediascape-assets 前缀路由 + 目录迁移 + 在线下载
-├── lib/bootstrap.js        # 启动引导：按 sources.json 的 dirs 把仓库根目录整目录迁移到真实数据目录（只搬一次）
+├── lib/index.js            # 服务端入口：注册 /theme-mediascape-assets 前缀路由 + 目录复制 + 在线下载
+├── lib/bootstrap.js        # 启动引导：按 sources.json 的 dirs 把仓库根目录整目录复制到真实数据目录（只复制一次，仓库根保留）
 ├── lib/config.js           # 服务端配置：MIME 表 / 白名单 / 上传上限（statfs 动态）
 ├── lib/paths.js            # 服务端路径推导：壁纸/音乐目录 / labels 文件 / 在线下载子目录
 ├── lib/labels.js           # 服务端 labels 映射读写（壁纸 wallpaper.json / 音乐 music.json）
 ├── lib/online.js           # 服务端在线资源下载（.part 断点续传 + SHA-1 校验 + kind 分流）
 ├── lib/handlers.js         # 服务端 HTTP 处理器：删除 / 壁纸列表 / 音乐列表 / 上传
-├── lib/sources.json        # 统一资源配置：sources 在线资源（hash→{name,url,kind}）+ dirs 目录迁移（{仓库目录:真实目录}）
+├── lib/sources.json        # 统一资源配置：sources 在线资源（hash→{name,url,kind}）+ dirs 目录复制（{仓库目录:真实目录}）
 ├── lib/client-parts/       # 浏览器端主题源码（片段按职责拆分为 5 个子目录：foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件，build 按序拼接回单文件；apply.js 为入口留根）
 │   ├── foundation/         # 基础支撑：loader 外壳 / constants 常量 / utils 工具 / tokens 令牌 / assets 素材占位
 │   ├── scenes/             # 视觉表现：identity 身份 CSS / boot 开屏 / wallpaper 壁纸 / upload 上传 / ambience 萤火
@@ -136,17 +136,22 @@ dsh-theme-mediascape/
 ├── lib/client.js           # 构建产物（build.cjs 生成；资源不再内嵌，仅少量配置）
 ├── GIF/                    # 开屏动图（boot.json 配置指定文件，保留 4bfecb05<…>.gif）
 │   └── boot.json           # 开屏启动页配置（file + durationMs，运行时 fetch，改配置即生效）
-├── music/                  # 音乐示例（插件启动整目录迁移到 $DSH_HOME/theme-mediascape/music/）
-│   └── music.json          # 音乐清单结构说明（真实数据在迁移后的 music/music.json）
-├── wallpaper/              # 壁纸示例（插件启动整目录迁移到 $DSH_HOME/theme-mediascape/wallpaper/）
-│   └── wallpaper.json      # 壁纸显示名映射结构说明（真实数据在迁移后的 wallpaper/wallpaper.json）
+├── music/                  # 音乐示例（插件启动整目录复制到 $DSH_HOME/theme-mediascape/music/，仓库根保留）
+│   └── music.json          # 音乐清单结构说明（真实数据在复制后的 music/music.json）
+├── wallpaper/              # 壁纸示例（插件启动整目录复制到 $DSH_HOME/theme-mediascape/wallpaper/，仓库根保留）
+│   └── wallpaper.json      # 壁纸显示名映射结构说明（真实数据在复制后的 wallpaper/wallpaper.json）
 ├── build.cjs               # 构建：读取 lib/client-parts/ 片段拼回模板（资源不再 build 内嵌）
+├── preview/                # 预览环境（真实前后端，见「🖥️ preview/ 预览环境」）：
+│   ├── start.sh            # 启停脚本（start/stop/restart/status；PID 在项目根 dsh-theme-mediascape.pid）
+│   ├── start-preview.mjs   # 预览服务器：真实后端 lib/*.js + 真实前端 client.js + 真实数据目录
+│   ├── preview.html        # 独立预览页（加载真实 client.js，接真实后端 API）
+│   └── tests/              # 拆分/行为回归测试脚本
 ├── LICENSE                 # MIT（仅代码）
 ├── .gitignore              # 忽略构建产物与第三方壁纸
 └── README.md
 ```
 
-> **真实数据目录**（插件启动时由 `lib/sources.json` 的 `dirs` 配置驱动迁移，只搬一次）：
+> **真实数据目录**（插件启动时由 `lib/sources.json` 的 `dirs` 配置驱动**复制**，仓库根保留，只复制一次）：
 >
 > ```
 > $DSH_HOME/theme-mediascape/
@@ -188,12 +193,32 @@ dsh plugin --profile web add "link:<本目录绝对路径>"
 > 想改内置素材时，改完 `assets/` 等目录后运行 `node build.cjs --clean` 重新构建干净版
 > （构建只更新 `lib/client.js` 里的 URL 清单，素材文件本身无需内嵌）。
 
-> 💡 开箱即用含一张**动态壁纸**（演示视频）与多张静态立绘；想加更多壁纸，
-> 直接点「景」→「＋ 添加壁纸」导入，或把文件放入 `assets/` 后重新构建（见「自定义素材」）。
+> 💡 开箱即用含**在线壁纸**（启动自动下载）与音乐示例；想加更多壁纸，
+> 直接点「景」→「＋ 添加壁纸」导入，或登记在线资源（见「自定义素材」）。
 
 > ⚠️ 与其它主题（如赛博朋克主题）互斥：多个主题都会调用 `ctx.theme.setTheme`
 > 并注入 `!important` 令牌样式，**后加载的赢**。建议同时只启用一个主题
 > （把其它主题的 patch 行注释掉即可，可随时恢复）。
+
+## 🖥️ preview/ 预览环境
+
+> **`preview/` 是开发预览用，跑的是真实前后端，不是简化模拟**：
+> 启动预览服务器即可在浏览器打开独立预览页，加载**真实的 `lib/client.js`**（构建产物）、
+> 接**真实的 `lib/*.js` 服务端逻辑**（上传/删除/壁纸列表/音乐列表/在线下载/目录复制全部走真实代码）、
+> 读写**真实的 `$DSH_HOME/theme-mediascape/` 数据目录**——预览所见即插件实际行为，
+> 改完代码 build 后刷新预览页即可验证，无需重启主 DSH。
+
+```powershell
+./preview/start.sh start     # 启动预览服务器（默认端口 30999）
+./preview/start.sh stop      # 停止
+./preview/start.sh restart   # 重启（默认命令）
+./preview/start.sh status    # 查看状态
+```
+
+- 预览页：`http://<本机IP>:30999/`（`preview.html` 加载真实 client.js）
+- 数据：读写真实 DSH 数据目录 `$DSH_HOME/theme-mediascape/`（非独立测试目录）
+- 写操作（upload/delete）转发真实后端；素材与列表本地直供，不依赖主实例重启
+- PID 文件在项目根 `dsh-theme-mediascape.pid`（启停脚本按项目全称写）
 
 ## 卸载
 
@@ -240,9 +265,9 @@ dsh plugin --profile web remove dsh-theme-mediascape
 - **本地 / 在线共存**：本地上传与在线下载同列表展示；同 hash 内容以本地上传优先
 - 以后加资源只改配置、不改代码
 
-**目录迁移**（插件启动时整目录搬一次，把仓库自带的素材目录带到真实数据目录）：
+**目录复制**（插件启动时把仓库自带的素材目录**复制一份**到真实数据目录，仓库根保留不删源）：
 
-在 `lib/sources.json` 的 `dirs` 里登记要迁移的目录（`{ "仓库根目录名": "真实数据子目录名" }`），启动时整目录移动，只搬一次（目标已存在非空即跳过）：
+在 `lib/sources.json` 的 `dirs` 里登记要复制的目录（`{ "仓库根目录名": "真实数据子目录名" }`），启动时整目录复制（递归，已存在文件跳过），只复制一次（目标已存在非空即跳过）：
 
 ```json
 {
@@ -268,8 +293,8 @@ dsh plugin --profile web remove dsh-theme-mediascape
    音乐用 `<audio>`；素材以 `/theme-mediascape-assets/` URL 形式外置（服务端半注册
    webServer 前缀路由按需流式提供，不内联 base64）；**壁纸/音乐清单均运行时 API 拉取**
    （`/wallpaper/list`、`/music/list`），build 不内嵌任何资源
-5. **启动引导**：apply 时按 `lib/sources.json` 的 `dirs` 把仓库根素材目录整目录迁移到
-   `$DSH_HOME/theme-mediascape/`（只搬一次，幂等），随后后台静默下载 `sources` 在线资源
+5. **启动引导**：apply 时按 `lib/sources.json` 的 `dirs` 把仓库根素材目录整目录**复制**到
+   `$DSH_HOME/theme-mediascape/`（只复制一次，幂等，仓库根保留），随后后台静默下载 `sources` 在线资源
 
 ---
 
@@ -277,7 +302,7 @@ dsh plugin --profile web remove dsh-theme-mediascape
 
 | 版本 | 说明 |
 |---|---|
-| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录迁移映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录迁移**到 `$DSH_HOME/theme-mediascape/`（只搬一次，目标已存在非空即跳过；跨设备 EXDEV 自动降级复制+删源）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
+| 1.0.3+（未升版） | 目录结构改造与全资源在线化：删除内置 `assets/` 壁纸与表情包（代码+文件）；壁纸（图片/视频）与音乐统一支持在线资源（`lib/sources.json`：`sources` 在线清单 hash→{name,url,kind}，`dirs` 目录复制映射）；插件启动按 `dirs` 把仓库根 `music/`、`wallpaper/` **整目录复制**到 `$DSH_HOME/theme-mediascape/`（仓库根保留不删源，只复制一次，目标已存在非空即跳过；link 安装下工作区素材不被搬空）；真实数据目录改 `wallpaper/`（含 `online/` 在线子目录 + `wallpaper.json` 显示名映射）与 `music/`（含 `music.json` 音乐清单，`/music/list` 每次调用自动同步目录实际内容回写清单）；**build 不再内嵌任何资源**（壁纸清单 `/wallpaper/list`、音乐清单 `/music/list` 运行时 API 拉取）；开屏 `GIF/boot.json` 恢复合法格式；新增 `lib/bootstrap.js`；README 目录结构与自定义素材章节全面同步 |
 | 1.0.3 | 壁纸主题自动配色（**入口暂注释，保留原配色**；基底变量/取色模块架构就位，后续恢复 `render()` 内一行调用即启用）：identity.js 硬编码色 152 处抽离为基底 CSS 变量引用（`var(--ff-theme-x, 基底值)`，基底值=原流萤色，视觉零变化）；新增 theme.js 取色模块（canvas 降采样+量化+HSL 调优，SHA-1 id 缓存、seq 并发守卫、视频不触发）；上传落盘改 SHA-1 hash 名 + `.labels.json` 存显示名（json 兼具重复文件判断，同内容复用仅更新显示名）；accept 复用 config.js（`UPLOAD_ACCEPT` 派生，`GET /config` 端点单一权威）；占位符去 FIREFLY 旧名前缀（`__BG_MANIFEST_`/`__UPLOAD_ACCEPT_` 等） |
 | 1.0.2 | 服务端模块拆分：`lib/index.js`（526 行）按职责拆为 6 模块（config 配置 / paths 路径 / labels 映射 / online 在线下载 / handlers 处理器 / index 入口），对外导出面与行为不变（等价比对逐字节一致）；labels 缓存状态收敛到所属模块（修复 ESM 跨模块赋值只读限制）；拆分回归验证脚本入库（`preview/tests/ms-split-behavior-check.mjs`、`ms-split-equivalence.mjs`）；浏览器端模板拆分：`lib/client.template.js`（2147 行）按职责拆为 `lib/client-parts/` 5 子目录 17 片段（foundation 基础 / scenes 视觉 / sound 音频 / secrets 彩蛋 / toolbar 组件 + apply 入口，build 按 PART_ORDER 拼接回单文件，产物与拆分前逐字节一致） |
 | 1.0.1 | 全量审计优化：上传键改 SHA-1 内容寻址（40 位 hex，服务器权威去重，同内容仅更新文件名）；动态壁纸「播放完自动切换」（顺序 / 随机，类似音乐播放，静态图分钟兜底）；二级面板点外自动收起；音乐导入同步 hash 去重；在线资源下载（`lib/online-sources.json` 配置 hash 主键，后台静默下载到 `wallpapers/online/`，断点续传 .part + SHA-1 校验，本地/在线同列表共存）；开屏启动页改为 json 配置（`GIF/boot.json` 指定 gif 与时长，运行时 fetch 免 build）；表情包功能停用（代码保留为死代码）；预览启停脚本改为模板下发 |

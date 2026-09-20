@@ -1,3 +1,1 @@
-{
-  "_comment": "音乐清单（仅结构说明，2026-09-21 起真实数据在 $DSH_HOME/theme-mediascape/music/music.json，由插件启动时整目录迁移）。格式：{ \"<sha40>\": { \"name\": \"音乐文件名.mp3\", \"cover\": \"封面文件名.png|空\" } }。不写 cover 时默认找同名音乐名的封面；cover 可为空即无封面。实际不内置则为空 {}。"
-}
+{ "_comment": "音乐清单（仅结构说明，真实数据在 $DSH_HOME/theme-mediascape/music/music.json，插件启动整目录迁移）。格式：{ "<sha40>": { "name": "音乐文件名.mp3", "cover": "封面文件名.png|空" } }。不写 cover 时默认找同名音乐名的封面；cover 可为空即无封面。实际不内置则为空 {}。" }

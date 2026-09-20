@@ -11,7 +11,9 @@
 # ============================================================
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 脚本位于 preview/ 内，项目根 = 上级目录
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_NAME="$(basename "$ROOT")"
 SERVER_DIR="$ROOT/preview"
 PID_FILE="$ROOT/${PROJECT_NAME}.pid"

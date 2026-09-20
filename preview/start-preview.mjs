@@ -23,7 +23,7 @@
  */
 import { createServer } from 'node:http';
 import { request as httpRequest } from 'node:http';
-import { createReadStream, existsSync, statSync, readFileSync, readdirSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, normalize, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -150,24 +150,44 @@ function serveFile(res, file) {
   createReadStream(file).pipe(res);
 }
 
-// ── 真实用户壁纸目录（与 lib/index.js wallpaperDir 同推导：$DSH_HOME/theme-mediascape/wallpapers） ──
-function wallpaperDir() {
-  const base = process.env.DSH_HOME || join(os.homedir(), '.dsh');
-  return join(base, 'theme-mediascape', 'wallpapers');
+// ── 真实数据目录（与 lib/paths.js 同推导：$DSH_HOME/theme-mediascape/wallpaper|music） ──
+function themeBase() {
+  return process.env.DSH_HOME || join(os.homedir(), '.dsh');
 }
-const LABELS_FILE = '.labels.json';
+function wallpaperDir() {
+  return join(themeBase(), 'theme-mediascape', 'wallpaper');
+}
+function musicDir() {
+  return join(themeBase(), 'theme-mediascape', 'music');
+}
+const WALLPAPER_LABELS_FILE = 'wallpaper.json';
+const MUSIC_LABELS_FILE = 'music.json';
 const ALLOWED_UPLOAD_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4']);
 
-/** 读 labels 映射（{ "custom-xxx": "原始文件名去扩展名" }），读不到/解析失败返回空对象。 */
-function loadLabels() {
+/** 读壁纸 labels（wallpaper/wallpaper.json），读不到/解析失败返回空对象。 */
+function loadWallpaperLabels() {
   try {
-    const p = join(wallpaperDir(), LABELS_FILE);
+    const p = join(wallpaperDir(), WALLPAPER_LABELS_FILE);
     if (!existsSync(p)) return {};
     return JSON.parse(readFileSync(p, 'utf8'));
   } catch { return {}; }
 }
 
-/** 本地列出用户壁纸（读真实数据目录 + labels）+ 在线下载资源（wallpapers/online/），与后端 handleList 结构一致。 */
+/** 读音乐清单（music/music.json），读不到/解析失败返回空对象。 */
+function loadMusicLabels() {
+  try {
+    const p = join(musicDir(), MUSIC_LABELS_FILE);
+    if (!existsSync(p)) return {};
+    return JSON.parse(readFileSync(p, 'utf8'));
+  } catch { return {}; }
+}
+
+/** 写音乐清单（music/music.json），写失败静默（只读预览时不影响）。 */
+function saveMusicLabels(map) {
+  try { writeFileSync(join(musicDir(), MUSIC_LABELS_FILE), JSON.stringify(map, null, 2), 'utf8'); } catch {}
+}
+
+/** 本地列出用户壁纸（读真实数据目录 + labels）+ 在线下载资源（wallpaper/online/），与后端 handleList 结构一致。 */
 function handleListLocal(res) {
   try {
     const dir = wallpaperDir();
@@ -175,9 +195,9 @@ function handleListLocal(res) {
       send(res, 200, JSON.stringify({ ok: true, items: [] }), 'application/json; charset=utf-8');
       return;
     }
-    const labels = loadLabels();
+    const labels = loadWallpaperLabels();
     const items = readdirSync(dir)
-      .filter((f) => !f.startsWith('.trash-') && f !== LABELS_FILE && ALLOWED_UPLOAD_EXT.has(extname(f).toLowerCase()))
+      .filter((f) => !f.startsWith('.trash-') && f !== WALLPAPER_LABELS_FILE && ALLOWED_UPLOAD_EXT.has(extname(f).toLowerCase()))
       .map((f) => {
         const ext = extname(f).toLowerCase();
         const id = f.replace(/\.[^.]+$/, '');
@@ -185,7 +205,7 @@ function handleListLocal(res) {
           id,
           kind: ext === '.mp4' ? 'video' : 'image',
           label: labels[id] || f.replace(/\.[^.]+$/, ''),
-          url: '/theme-mediascape-assets/wallpapers/' + encodeURIComponent(f),
+          url: '/theme-mediascape-assets/wallpaper/' + encodeURIComponent(f),
         };
       })
       .sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -208,7 +228,7 @@ function handleListLocal(res) {
             id,
             kind: ext === '.mp4' ? 'video' : 'image',
             label: labels[id] || f.replace(/\.[^.]+$/, ''),
-            url: '/theme-mediascape-assets/wallpapers/online/' + encodeURIComponent(f),
+            url: '/theme-mediascape-assets/wallpaper/online/' + encodeURIComponent(f),
           };
         });
       items.push(...online);
@@ -219,23 +239,73 @@ function handleListLocal(res) {
   }
 }
 
-/** 本地服务插件根目录下的静态素材（assets/、GIF/、music/）。 */
+/**
+ * 本地列出音乐（读真实数据目录 music/ + music.json 显示名/封面），与后端 handleMusicList 结构一致。
+ * 同名封面：音乐名去扩展名与封面名去扩展名一致即匹配；music.json 的 cover 字段优先。
+ */
+function handleMusicListLocal(res) {
+  try {
+    const dir = musicDir();
+    if (!existsSync(dir)) {
+      send(res, 200, JSON.stringify({ ok: true, items: [] }), 'application/json; charset=utf-8');
+      return;
+    }
+    const meta = loadMusicLabels();
+    const audioExts = new Set(['.mp3', '.ogg', '.m4a', '.wav']);
+    const imgExts = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+    const files = readdirSync(dir);
+    const audioFiles = files.filter((f) => audioExts.has(extname(f).toLowerCase()) && !f.startsWith('.trash-'));
+    const items = audioFiles
+      .map((f) => {
+        const id = f.replace(/\.[^.]+$/, '');
+        const m = meta[id];
+        const cover = typeof m?.cover === 'string' && m.cover
+          ? m.cover
+          : (files.find((g) => imgExts.has(extname(g).toLowerCase()) && g.replace(/\.[^.]+$/, '') === id) || '');
+        return {
+          id,
+          name: (typeof m?.name === 'string' && m.name) || f,
+          cover,
+          url: '/theme-mediascape-assets/music/' + encodeURIComponent(f),
+          custom: true,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    // 自动同步 music.json：与后端 handleMusicList 同语义（新增登记/删除移除/同名封面补 cover/保留已有）。
+    const synced = {};
+    for (const it of items) {
+      const prev = meta[it.id];
+      synced[it.id] = {
+        name: (typeof prev?.name === 'string' && prev.name) || it.name,
+        cover: (typeof prev?.cover === 'string' && prev.cover) || it.cover,
+      };
+    }
+    if (JSON.stringify(synced) !== JSON.stringify(meta)) saveMusicLabels(synced);
+    send(res, 200, JSON.stringify({ ok: true, items }), 'application/json; charset=utf-8');
+  } catch (e) {
+    send(res, 500, JSON.stringify({ ok: false, error: String(e?.message ?? e) }), 'application/json; charset=utf-8');
+  }
+}
+
+/** 本地服务插件根目录下的静态素材（GIF/、music/）。 */
 function serveAssetLocal(res, pathname) {
-  const rel = pathname.replace(/^\/theme-mediascape-assets\//, '');   // assets/xxx...
+  const rel = pathname.replace(/^\/theme-mediascape-assets\//, '');   // GIF/xxx...
   const top = rel.split('/')[0];
-  if (top !== 'assets' && top !== 'GIF' && top !== 'music') { send(res, 404, 'not found'); return; }
-  const file = normalize(join(THEME_ROOT, rel));
-  if (!file.startsWith(join(THEME_ROOT, top))) { send(res, 403, 'forbidden'); return; }
+  if (top !== 'GIF' && top !== 'music') { send(res, 404, 'not found'); return; }
+  // music/ → 真实数据目录（音乐本体+封面）；GIF/ → 插件根
+  const base = top === 'music' ? musicDir() : THEME_ROOT;
+  const file = normalize(join(base, top === 'music' ? rel.slice('music/'.length) : rel));
+  if (!file.startsWith(normalize(join(base, '')))) { send(res, 403, 'forbidden'); return; }
   serveFile(res, file);
 }
 
-/** 本地服务用户上传壁纸（真实数据目录 wallpapers/<file>）与在线资源（wallpapers/online/<file>）。 */
+/** 本地服务用户上传壁纸（真实数据目录 wallpaper/<file>）与在线资源（wallpaper/online/<file>）。 */
 function serveWallpaperLocal(res, pathname) {
-  const rel = pathname.replace(/^\/theme-mediascape-assets\/wallpapers\//, '');
+  const rel = pathname.replace(/^\/theme-mediascape-assets\/wallpaper\//, '');
   // 允许 顶层文件 或 online/<file>（在线下载资源子目录）；禁止深层穿越/回收/labels
   const isOnline = rel.startsWith('online/');
   const name = isOnline ? rel.slice('online/'.length) : rel;
-  if (!name || name.includes('/') || name.startsWith('.trash-') || name === LABELS_FILE) { send(res, 404, 'not found'); return; }
+  if (!name || name.includes('/') || name.startsWith('.trash-') || name === WALLPAPER_LABELS_FILE) { send(res, 404, 'not found'); return; }
   const base = isOnline ? join(wallpaperDir(), 'online') : wallpaperDir();
   const file = normalize(join(base, name));
   if (!file.startsWith(base)) { send(res, 403, 'forbidden'); return; }
@@ -264,19 +334,25 @@ const server = createServer((req, res) => {
       send(res, 200, 'pong', 'text/plain'); return;
     }
     // 壁纸列表：本地实现（与后端 handleList 同结构），主实例不重启也能看到用户上传的壁纸
-    if (req.method === 'GET' && pathname === '/theme-mediascape-assets/wallpapers/list') {
+    if (req.method === 'GET' && pathname === '/theme-mediascape-assets/wallpaper/list') {
       console.log('[local] list', pathname);
       handleListLocal(res);
       return;
     }
-    // 静态素材（assets/ GIF/ music/）本地直供
-    if (req.method === 'GET' && /^\/theme-mediascape-assets\/(assets|GIF|music)\//.test(pathname)) {
+    // 音乐列表：本地实现（与后端 handleMusicList 同结构，含自动同步 music.json）
+    if (req.method === 'GET' && pathname === '/theme-mediascape-assets/music/list') {
+      console.log('[local] music list', pathname);
+      handleMusicListLocal(res);
+      return;
+    }
+    // 静态素材（GIF/ music/）本地直供（music/ → 真实数据目录）
+    if (req.method === 'GET' && /^\/theme-mediascape-assets\/(GIF|music)\//.test(pathname)) {
       console.log('[local] asset GET', pathname);
       serveAssetLocal(res, pathname);
       return;
     }
-    // 用户上传壁纸文件（wallpapers/<file>，非 list）本地直供
-    if (req.method === 'GET' && /^\/theme-mediascape-assets\/wallpapers\/[^/]+$/.test(pathname) && !pathname.endsWith('/list')) {
+    // 用户上传壁纸文件（wallpaper/<file>，非 list）本地直供
+    if (req.method === 'GET' && /^\/theme-mediascape-assets\/wallpaper\/[^/]+$/.test(pathname) && !pathname.endsWith('/list')) {
       console.log('[local] wallpaper GET', pathname);
       serveWallpaperLocal(res, pathname);
       return;
