@@ -44,7 +44,7 @@ function hexToRgbStr(hex) {
 // 生成 identity.js 的 --ff-theme-* 段（返回替换用字符串：从 html{ 到 }）
 function buildIdentityBlock(colors) {
   return [
-    '"html { color-scheme: dark !important; background: rgb(var(--ff-theme-bg)) !important;",',
+    '"html { color-scheme: dark !important; background: #0a0c12 !important;",',
     '"  /* ── 基底主题变量（壁纸联动皮肤命名空间 --ff-theme-*；值=一键应用配色，动态取色覆盖）── */",',
     `"  /* 一键应用 ${colors._name || ''}：肤色 ${colors.skin} / 发色 ${colors.hair} / 瞳色 ${colors.eye} / 礼服灰白 ${colors.white} / 礼服紫 ${colors.purple} / 点缀金 ${colors.gold} */",`,
     `"  --ff-theme-bg: ${hexToRgbStr(colors.bg || '#0a0c16')};",`,
@@ -72,8 +72,8 @@ function buildTokensContent(colors) {
     `// ${colors._name || '自定义'}：肤色 ${S} / 发色 ${H} / 瞳色 ${E} / 礼服灰白 ${W} / 礼服紫 ${P} / 点缀金 ${G}`,
     '// ⚠️ 本文件由「配色对照页 → 应用为正式基底」自动生成，手动修改会被覆盖；留痕见 preview/generated/',
     'const TOKENS = {',
-    '  // 背景：半透明深空夜空（让壁纸透出来；bg-base 是根容器，要最透明）',
-    '  "--dsw-alias-bg-base": ' + JSON.stringify(rgba(colors.bg || '#0a0c16', 0.30)) + ',',
+    '  // 背景：中间画面全透明（壁纸区域直接透出，不再铺任何底色）；侧边栏/对话框/按钮等组件仍用主题色',
+    '  "--dsw-alias-bg-base": "transparent",',
     '  "--dsw-alias-bg-layer-1": ' + JSON.stringify(rgba(colors.bgSoft || '#101020', 0.52)) + ',',
     '  "--dsw-alias-bg-layer-2": ' + JSON.stringify(rgba(colors.bgLayer || '#161222', 0.72)) + ',',
     '  "--dsw-alias-bg-layer-3": ' + JSON.stringify(rgba(colors.bgLayer || '#161222', 0.80)) + ',',
