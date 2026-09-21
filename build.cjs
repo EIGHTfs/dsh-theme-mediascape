@@ -26,9 +26,9 @@ const PART_ORDER = [
   // theme.js（壁纸自动配色）已废弃：不再构建（功能停用，源码保留备查）
   "foundation/loader.js", "foundation/constants.js", "foundation/utils.js",
   "foundation/tokens.js", "foundation/assets.js",
-  // scenes：视觉表现（身份 CSS / 开屏 / 壁纸 / 萤火）
+  // scenes：视觉表现（身份 CSS / 开屏 / 壁纸 / 萤火 / 字号）
   "scenes/identity.js", "scenes/boot.js", "scenes/wallpaper.js",
-  "scenes/upload.js", "scenes/ambience.js",
+  "scenes/upload.js", "scenes/ambience.js", "scenes/font.js",
   // sound：音频（打字音效 / 封面提取 / 播放器）
   "sound/typesound.js", "sound/music-extract.js", "sound/music-player.js",
   // secrets：彩蛋区（SAM 彩蛋；表情包已删除）
