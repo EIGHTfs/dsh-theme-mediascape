@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>theme-studio·preview</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%0A%20%20%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23232336%22/%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%229%22%20width%3D%2222%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22%23d4af37%22/%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%229%22%20width%3D%2222%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22none%22%20stroke%3D%22%23f5e6b8%22%20stroke-width%3D%221%22/%3E%0A%3C/svg%3E">
+<style>
+  html, body { height: 100%; margin: 0; background: #0a0f1c; color: #e8f6ff; font-family: system-ui, sans-serif; }
+  #hint {
+    position: fixed; left: 12px; top: 12px; z-index: 9999;
+    padding: 8px 14px; font-size: 12px; opacity: .75;
+    background: rgba(8, 14, 26, .85); border: 1px solid rgba(125, 255, 158, .35);
+    border-radius: 8px; pointer-events: none;
+  }
+  #hint code { color: #7dff9e; }
+  /* 2026-09-23 预览页重启按钮：hint 条内嵌，点击重启预览服务（服务端 /api/restart） */
+  #restart-btn {
+    pointer-events: auto; cursor: pointer; margin-left: 10px;
+    padding: 2px 10px; font-size: 11px; color: #7dff9e;
+    background: rgba(125, 255, 158, .1); border: 1px solid rgba(125, 255, 158, .4);
+    border-radius: 6px;
+  }
+  #restart-btn:hover { background: rgba(125, 255, 158, .25); }
+  #restart-btn:disabled { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+<div id="hint">⚠ 独立预览态：壁纸/音乐资源（<code>/theme-mediascape-assets/…</code>）需本地静态服务器才可见，悬浮框 UI 本身完整可点可拖。加 <code>?mode=full</code> 切换完全真实数据模拟（关兜底、隐藏提示、数据全真实）<button id="restart-btn" type="button" title="重启预览服务（start.sh restart）">重启服务</button></div>
+
+<script>
+// ── 预览模式变量（2026-09-22 用户约定）：?mode=full → 完全真实数据模拟 ──
+// full：不做 fetch 空清单兜底（服务不可达直接红字报错，不假装有数据）、隐藏常驻提示条、
+//       开屏/壁纸/音乐/胶囊数据全部走真实后端（刷新即见最新改动）。
+// 缺省：独立预览态（fetch 失败兜底空清单，悬浮框仍可演示交互）。
+try {
+  window.__PREVIEW_MODE__ = new URLSearchParams(location.search).get('mode') || '';
+} catch (e) { window.__PREVIEW_MODE__ = ''; }
+if (window.__PREVIEW_MODE__ === 'full') {
+  const h = document.getElementById('hint');
+  if (h) h.style.display = 'none';
+}
+// 2026-09-23 预览页重启按钮：POST /api/restart → 服务端 spawn start.sh restart
+// （先响应后重启，本页连接会断）；成功后按钮转状态，延迟自动刷新等新服务起来。
+const restartBtn = document.getElementById('restart-btn');
+if (restartBtn) {
+  restartBtn.addEventListener('click', () => {
+    restartBtn.disabled = true;
+    restartBtn.textContent = '重启中…';
+    fetch('/api/restart', { method: 'POST' })
+      .then((r) => r.json().catch(() => ({})))
+      .then((j) => {
+        if (j && j.ok) {
+          // 服务端已收到 → start.sh 停旧起新；等 3.5s 后自动刷新（新进程起来）
+          setTimeout(() => location.reload(), 3500);
+        } else {
+          restartBtn.textContent = '重启失败';
+          restartBtn.disabled = false;
+          setTimeout(() => { restartBtn.textContent = '重启服务'; }, 2000);
+        }
+      })
+      .catch(() => {
+        // fetch 失败可能是连接已被重启打断（服务已在重启）→ 也走自动刷新
+        setTimeout(() => location.reload(), 3500);
+      });
+  });
+}
+</script>
+
+<script>
+// ── 垫片 1/3：__ModuleLoader__（DSH 客户端模块注册器）──
+window.__ModuleLoader__ = {
+  load(def) {
+    window.__FF_MOD__ = def; // 存模块定义，预览脚本随后手动 factory()
+  },
+};
+</script>
+
+<script>
+// ── 垫片 0（2026-09-22 起注释停用）：跳过主题开屏动画 ──
+// 原用途：主题 playTransformIntro() 在 prefers-reduced-motion: reduce 时直接 return（不渲染 .mediascape-dsh-boot 全屏遮罩）。
+// 原来独立预览要一进页面就能看到悬浮框，不能等动画 → 垫片让 matchMedia 对该查询返回 matches=true。
+// 2026-09-22 预览页要展示完整开屏（含 file:"auto" 视频壁纸开屏、播完淡出移交壁纸层），不再跳过——
+// 保留此块为备选：想看「跳过开屏直接看悬浮框」时可恢复下面的 matchMedia 接管（在 client.js 之前定义才生效）。
+// (() => {
+//   const origMatchMedia = window.matchMedia ? window.matchMedia.bind(window) : null;
+//   window.matchMedia = (query) => {
+//     if (typeof query === 'string' && query.includes('prefers-reduced-motion')) {
+//       return { matches: true, media: query, addEventListener() {}, removeEventListener() {} };
+//     }
+//     return origMatchMedia ? origMatchMedia(query) : { matches: false, media: String(query), addEventListener() {}, removeEventListener() {} };
+//   };
+// })();
+</script>
+
+<script src="../lib/client.js"></script>
+
+<script>
+(function boot() {
+  const def = window.__FF_MOD__;
+  if (!def) { document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f66">client.js 未定义 __ModuleLoader__ 注册</pre>'); return; }
+
+  // 手动执行 factory 拿 exports（client.js 无外部 require，直出对象）
+  let exported;
+  try {
+    exported = def.factory(() => { throw new Error('预览态不支持 require'); });
+  } catch (e) {
+    document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f66">factory 执行失败: ' + e.message + '</pre>');
+    throw e;
+  }
+
+  // ── 垫片 2/3：ctx（主题只用到 effect + theme）──
+  const fakeCtx = {
+    effect(cb) {
+      const dispose = (typeof cb === 'function') ? cb() : undefined;
+      return typeof dispose === 'function' ? dispose : () => {};
+    },
+    theme: {
+      register(cfg) {
+        console.log('[preview] theme.register:', cfg && cfg.id);
+        // 把设计令牌铺到 :root，让 CSS 变量生效
+        if (cfg && cfg.tokens) {
+          for (const [k, v] of Object.entries(cfg.tokens)) {
+            document.documentElement.style.setProperty(k, v);
+          }
+        }
+      },
+      setTheme(id) { console.log('[preview] setTheme:', id); },
+    },
+  };
+
+  // ── 垫片 3/3：fetch ──
+  // 缺省（独立预览态）：独立静态服务器未起时 list 兜底为空清单（悬浮框仍可演示交互）；其余请求放行真服务器。
+  // ?mode=full（完全真实数据模拟）：不做任何兜底——服务不可达直接让请求失败（主题层红字/空壁纸如实呈现），
+  // 数据全部走真实后端，刷新即见最新改动（2026-09-22 用户约定）。
+  const origFetch = window.fetch;
+  const isFull = (window.__PREVIEW_MODE__ === 'full');
+  window.fetch = (url, opts) => {
+    const s = String(url);
+    if (s.includes('/theme-mediascape-assets/')) {
+      if (isFull) return origFetch(url, opts); // 完全真实模拟：无兜底
+      return origFetch(url, opts).catch(() => {
+        if (s.includes('wallpapers/list')) {
+          return new Response(JSON.stringify({ ok: true, items: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({ ok: false, error: 'preview server offline' }), { status: 502, headers: { 'content-type': 'application/json' } });
+      });
+    }
+    return origFetch(url, opts);
+  };
+
+  // 启动主题
+  console.log('[preview] applying...');
+  exported.apply(fakeCtx);
+  console.log('[preview] apply done — 悬浮框应已挂载到 .mediascape-dsh-dock');
+})();
+</script>
+<script>
+// ── 操作日志区（2026-09-2x）：预览页右下角浮动文本面板，实时显示页面上的操作——
+// 自动脚本（playwright 积木模拟手动点击）与手动操作都派发真实 DOM 事件 → 统一被捕获显示，
+// 便于核对「脚本点了什么 / 手动操作发生了什么」。显式通道 window.__mediascapeDshLogAction(msg)。
+(function () {
+  if (document.getElementById('mediascape-dsh-oplog')) return;
+  const box = document.createElement('div');
+  box.id = 'mediascape-dsh-oplog';
+  box.style.cssText = 'position:fixed;right:8px;bottom:8px;width:340px;height:170px;z-index:999999;' +
+    'background:rgba(10,14,10,.9);color:#9f9;font:11px/1.5 monospace;padding:6px 8px;border-radius:8px;' +
+    'border:1px solid rgba(130,190,130,.35);overflow:auto;white-space:pre-wrap;text-align:left;';
+  const title = document.createElement('div');
+  title.textContent = '操作日志（自动脚本/手动操作统一记录）';
+  title.style.cssText = 'font-weight:bold;color:#cfc;margin-bottom:4px;border-bottom:1px solid rgba(130,190,130,.3);padding-bottom:2px;';
+  const body = document.createElement('div');
+  box.appendChild(title); box.appendChild(body);
+  document.body.appendChild(box);
+  const logLine = (msg) => {
+    const line = '[' + new Date().toISOString().slice(11, 19) + '] ' + msg;
+    body.textContent = (line + '\n' + body.textContent).slice(0, 3000);
+  };
+  window.__mediascapeDshLogAction = logLine;
+  // 捕获真实点击（capture 阶段：手动点击与自动脚本派发的真实事件都经过这里）
+  document.addEventListener('click', (e) => {
+    const el = e.target && e.target.closest ? e.target.closest('button, .mediascape-dsh-bg-picker-item, .mediascape-dsh-ms-item, [data-video-toggle], [data-act]') : null;
+    if (!el) return;
+    const label = (el.getAttribute('data-act') || el.getAttribute('data-video-toggle') || el.textContent || el.className || el.tagName).trim().replace(/\s+/g, ' ').slice(0, 40);
+    logLine('点击 ' + label);
+  }, true);
+  logLine('预览页加载 mode=' + (window.__PREVIEW_MODE__ || 'default'));
+})();
+</script>
+</body>
+</html>

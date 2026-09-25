@@ -1,0 +1,145 @@
+{
+  "comment": "宿主元素 class 目录（2026-09-22 由 class-catalog.json 更名，与 theme-colors.json 命名风格统一 theme- 前缀）。每条 = 一个可解释的宿主元素：selector + host + desc + capsule（对应 capsules.json 配方 key；null=非胶囊只解释）+ alpha（该胶囊背景不透明度，来自 capsules.json 配方 bg.alpha；非胶囊 null）+ bgType（layer=跟随 bgLayer 再叠 alpha；solid=固定色）。配色网站「宿主元素配色」区数据源；胶囊配方权威在 capsules.json。",
+  "entries": [
+    {
+      "key": "markdown",
+      "selector": "[class*='_markdown_']",
+      "host": "AI 回复正文渲染容器（ui-chat AssistantMarkdown）",
+      "desc": "消息正文实际载体，压包后稳定前缀 _markdown_*；加半透明紫底+圆角，白字下有底色衬住不花眼",
+      "capsule": "markdown",
+      "alpha": 0.5,
+      "bgType": "layer"
+    },
+    {
+      "key": "thinkBody",
+      "selector": "[data-variant='think'] [class*='_thinkBody']",
+      "host": "思考展开正文（ReasoningRow.tsx，ui-chat）",
+      "desc": "思考展开后的正文内容；⚠️ 类名是 hash_thinkBody（无尾下划线），选择器写 [class*='_thinkBody'] 而非 [class*='_thinkBody_']；折叠态标题行不加胶囊",
+      "capsule": "thinkBody",
+      "alpha": 0.5,
+      "bgType": "layer"
+    },
+    {
+      "key": "summary",
+      "selector": "[class*='_summary']:not([class*='_summaryText']):not([class*='_summarySuffix']):not([class*='_summaryScrollRegion'])",
+      "host": "工具/思考/命令卡折叠摘要（ToolRow/GenericCommandCard/SkillRow/SearchBlock/ReasoningRow）",
+      "desc": "统一角色「折叠摘要」；⚠️ :not 排除 _summaryText 子 span、_summarySuffix 计数、_summaryScrollRegion 滚动区，避免误伤",
+      "capsule": "summary",
+      "alpha": 0.5,
+      "bgType": "layer"
+    },
+    {
+      "key": "todoPanel",
+      "selector": "[data-testid='todo-panel']",
+      "host": "Todo 列表面板（ui-chat）",
+      "desc": "宿主底色来自 --dsw-specific-tip 金色令牌，此处覆盖为紫底胶囊；仅影响 todo 面板（data-testid 锚点）",
+      "capsule": "todoPanel",
+      "alpha": 0.6,
+      "bgType": "layer"
+    },
+    {
+      "key": "queueDock",
+      "selector": "[data-queue-dock] > div",
+      "host": "排队消息条（ui-conversation QueueDock）",
+      "desc": "与 todo 面板同款紫底；上圆角+上边框；⚠️ 不要用 data-pending-steering 做排队样式（那是用户消息气泡，会误伤）",
+      "capsule": "queueDock",
+      "alpha": 0.6,
+      "bgType": "layer"
+    },
+    {
+      "key": "status",
+      "selector": "[role='status']",
+      "host": "「深度求索中…」状态提示（ui-chat ChatView turnStatus）",
+      "desc": "小胶囊：固定紫底 rgba(124,120,190,0.6) + 圆角 999px + 白描边叠加在全局黑描边之上，深底保证任意壁纸下白描边清晰",
+      "capsule": "status",
+      "alpha": 0.6,
+      "bgType": "layer"
+    },
+    {
+      "key": "statusChild",
+      "selector": "[role='status'] [class*='_']",
+      "host": "状态胶囊内部子元素",
+      "desc": "取消全局黑描边（text-shadow: inherit），避免叠加发糊",
+      "capsule": null,
+      "alpha": null
+    },
+    {
+      "key": "float",
+      "selector": "[class*='_float_']",
+      "host": "会话窗容器（ui-layout DockView）",
+      "desc": "深色半透明衬底（2026-09-22 起无毛玻璃，backdrop-filter 注释保留可恢复）：rgba(10,12,18,0.22)；字号随 --mediascape-dsh-font-size",
+      "capsule": null,
+      "alpha": null
+    },
+    {
+      "key": "mask",
+      "selector": "[class*='_mask_']",
+      "host": "模态遮罩层（打开设置/弹层全屏覆盖）",
+      "desc": "去背景模糊 + 背景 rgba(10,12,18,0.18) 轻微变暗，壁纸全屏透出",
+      "capsule": null,
+      "alpha": null
+    },
+    {
+      "key": "pickerOpen",
+      "selector": "html.mediascape-dsh-picker-open *",
+      "host": "文件选择器打开降载",
+      "desc": "打开系统文件选择器（SAF）前由 PickerGuard 挂载，禁用全局 backdrop-filter——安卓低内存设备合成内存峰值防被杀",
+      "capsule": null,
+      "alpha": null
+    },
+    {
+      "key": "chatColumn",
+      "selector": "[data-conversation-scroll] [class$='_column']",
+      "host": "聊天消息流主列容器（ChatView.module.css .column：居中限宽 flex 列，含全部消息）",
+      "desc": "整列胶囊面板：半透明主题底 + 圆角 16px + 内边距，消息流呈一块面板；锚点 data-conversation-scroll 全局属性稳定",
+      "capsule": "chatColumn",
+      "alpha": 0.32,
+      "bgType": "layer"
+    },
+    {
+      "key": "flowItem",
+      "selector": "[data-conversation-scroll] [class$='_flowItem']",
+      "host": "聊天消息座容器（ChatNodeSeat.tsx flowItem，ui-chat）",
+      "desc": "column 内每个消息座（用户/AI/工具/思考卡外层）——消息座级胶囊：整条消息一块半透明底+圆角；父级 chatColumn",
+      "capsule": "flowItem",
+      "alpha": 0.28,
+      "bgType": "layer"
+    },
+    {
+      "key": "older",
+      "selector": "[data-conversation-scroll] [class$='_older'] button",
+      "host": "「加载更早消息」按钮行（ChatView.tsx older，ui-chat）",
+      "desc": "column 顶部、hasMore 时显示；小胶囊：半透明底+圆角+内边距；父级 chatColumn",
+      "capsule": "older",
+      "alpha": 0.3,
+      "bgType": "layer"
+    },
+    {
+      "key": "guide",
+      "selector": "[data-sidebar-right-guide]",
+      "host": "右侧边栏「指南」页容器（GuideBody.tsx guide，ui-sidebar-right）",
+      "desc": "居中列：罗盘图（hero）+ 指南胶囊条目列表（entry）；整面板胶囊：半透明主题底+圆角+内边距；锚点 data-sidebar-right-guide 全局属性稳定",
+      "capsule": "guide",
+      "alpha": 0.5,
+      "bgType": "layer"
+    },
+    {
+      "key": "guideEntry",
+      "selector": "[data-sidebar-right-guide] [class$='_entry']",
+      "host": "指南胶囊条目（GuideBody.tsx entry，ui-sidebar-right）",
+      "desc": "自带 380px pill 底+圆角 24px，主题胶囊统一覆盖其底色；父级 guide",
+      "capsule": "guideEntry",
+      "alpha": 0.28,
+      "bgType": "layer"
+    },
+    {
+      "key": "tabStrip",
+      "selector": "[class*='_tabStrip_']",
+      "host": "浮动面板标签条（dockkit.module.css .tabStrip，ui-dockkit）",
+      "desc": "38px 横条含标签 chips；编译类 Vite 新格式 _tabStrip_<hash>_<序号>，匹配 _tabStrip_ 前缀；仅加底+圆角不动 padding",
+      "capsule": "tabStrip",
+      "alpha": 0.6,
+      "bgType": "layer"
+    }
+  ]
+}

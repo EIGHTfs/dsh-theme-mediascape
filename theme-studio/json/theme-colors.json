@@ -1,0 +1,95 @@
+{
+  "comment": "配色真源（2026-09-22 由 css 等价迁移 json）：--swatch-* 键 = 元素 class 名（与 comps.json key 一一对应，kebab-case）；每颜色带 alpha 不透明度。bg/bgSoft/bgLayer = 背景层级（bg 最底 → bgSoft 次层 → bgLayer 层底色，胶囊/组件 layer 型跟随），优先级：具体元素色 > 胶囊 layer 型 > bgLayer > bgSoft > bg。label/badge 为显示元数据。\n键说明（2026-09-22 补映射）：btn-primary/btn-secondary/gold-glow/sidebar-left/status-capsule/text-dim/text-primary/text-tertiary/chip-active/markdown-capsule/dock-bar 已接入 tokens/identity 生成（改键生效）；queue-dock/todo-panel/sidebar-fill 的宿主底色由 capsules.json 胶囊配方（bg-layer + alpha）控制，本键值 = 胶囊底色现状参考（如实记录，改键不直接改胶囊）。",
+  "label": "知更鸟·晴歌",
+  "badge": "默认",
+  "bg": {
+    "hex": "#3E2F66",
+    "alpha": 1
+  },
+  "bgSoft": {
+    "hex": "#2A2148",
+    "alpha": 1
+  },
+  "bgLayer": {
+    "hex": "#362A56",
+    "alpha": 1
+  },
+  "colors": {
+    "btn-primary": {
+      "hex": "#7CC8E8",
+      "alpha": 1
+    },
+    "btn-secondary": {
+      "hex": "#3B89C4",
+      "alpha": 1
+    },
+    "chip-active": {
+      "hex": "#E2C05A",
+      "alpha": 0.18
+    },
+    "text-primary": {
+      "hex": "#E8F4FA",
+      "alpha": 1
+    },
+    "text-dim": {
+      "hex": "#A9C9B9",
+      "alpha": 1
+    },
+    "text-tertiary": {
+      "hex": "#A89BC2",
+      "alpha": 1
+    },
+    "gold-glow": {
+      "hex": "#FFD93B",
+      "alpha": 1
+    },
+    "todo-panel": {
+      "hex": "#362A56",
+      "alpha": 0.6
+    },
+    "queue-dock": {
+      "hex": "#362A56",
+      "alpha": 0.6
+    },
+    "dock-bar": {
+      "hex": "#362A56",
+      "alpha": 1
+    },
+    "sidebar-fill": {
+      "hex": "#362A56",
+      "alpha": 0.65
+    },
+    "sidebar-left": {
+      "hex": "#362A56",
+      "alpha": 0.65
+    },
+    "markdown-capsule": {
+      "hex": "#E2C05A",
+      "alpha": 0.12
+    },
+    "status-capsule": {
+      "hex": "#F5F7FA",
+      "alpha": 1
+    },
+    "sidebar-brand": {
+      "hex": "#362A56",
+      "alpha": 0.6
+    },
+    "panelBody": {
+      "hex": "#362A56",
+      "alpha": 1
+    },
+    "sessionHeader": {
+      "hex": "#362A56",
+      "alpha": 0.75
+    },
+    "textDocument": {
+      "hex": "#362A56",
+      "alpha": 0.75
+    },
+    "docPreview": {
+      "hex": "#362A56",
+      "alpha": 0.7
+    }
+  }
+}

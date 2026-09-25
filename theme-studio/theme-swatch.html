@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>theme-studio·theme-swatch</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%0A%20%20%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23232336%22/%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%229%22%20width%3D%2222%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22%23d4af37%22/%3E%0A%20%20%3Crect%20x%3D%225%22%20y%3D%229%22%20width%3D%2222%22%20height%3D%2214%22%20rx%3D%227%22%20fill%3D%22none%22%20stroke%3D%22%23f5e6b8%22%20stroke-width%3D%221%22/%3E%0A%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #0a0a12; color: #e8e6f0; padding: 24px; }
+  h1 { font-size: 21px; margin-bottom: 4px; letter-spacing: 1px; }
+  .sub { font-size: 13px; color: #8a86a0; margin-bottom: 16px; }
+  /* ═══ 选项卡 ═══ */
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 10px; }
+  .tab { padding: 8px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; border: 1px solid rgba(212,175,55,.35); background: rgba(255,255,255,.03); color: #b8b4c8; cursor: pointer; }
+  .tab:hover { background: rgba(138,109,155,.25); }
+  .tab.active { background: rgba(212,175,55,.18); color: #fdf0fa; border-color: #d4af37; }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+  /* ═══ 配色 tab ═══ */
+  /* 左右完全对齐：表头/行/表尾都是同一 grid 两列（左=当前主题，右=预设包），左右每行同一水平线 */
+  .swatch-grid { display: flex; flex-direction: column; gap: 0; }
+  .swatch-head, .swatch-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 900px) { .swatch-head, .swatch-foot { grid-template-columns: 1fr; } }
+  .swatch-head { margin-bottom: 10px; }
+  .swatch-foot { margin-top: 14px; }
+  .hcell, .fcell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hcell { font-size: 15px; font-weight: 600; color: #e8e6f0; border-radius: 10px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(16,13,26,.55); }
+  .hcell .hint { font-size: 11px; color: #8a86a0; font-weight: 400; margin-left: 8px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .badge-theme { background: rgba(107,142,90,.25); color: #eafff3; }
+  .badge-preset { background: rgba(138,109,155,.3); color: #fdf0fa; }
+  /* ═══ 背景层级区块（bg → bgSoft → bgLayer，2026-09-22 json 化新增）═══ */
+  .bg-panel { margin-bottom: 12px; border-radius: 10px; border: 1px solid rgba(138,109,155,.25); background: rgba(16,13,26,.5); overflow: hidden; }
+  .bg-panel summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px; color: #cfc8dd; font-weight: 600; list-style: none; user-select: none; }
+  .bg-panel summary::-webkit-details-marker { display: none; }
+  .bg-panel summary .hint { font-size: 11px; color: #8a86a0; font-weight: 400; }
+  .bg-row { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 26px; border-top: 1px solid rgba(255,255,255,.05); }
+  .bg-row.lv1 { padding-left: 26px; } .bg-row.lv2 { padding-left: 44px; } .bg-row.lv3 { padding-left: 62px; }
+  .bg-row .lbl { flex: none; width: 74px; font-size: 12px; color: #b8b4c8; }
+  .bg-row .ckey { flex: none; width: 76px; font-size: 10.5px; color: #6e6478; font-family: 'SF Mono', Consolas, monospace; }
+  .bg-row .hex-in { width: 92px; background: #16122a; color: #e8e6f0; border: 1px solid rgba(212,175,55,.3); border-radius: 6px; padding: 4px 8px; font-size: 12px; font-family: 'SF Mono', Consolas, monospace; }
+  .bg-row .chip2 { flex: none; width: 34px; height: 20px; border-radius: 6px; border: 1px solid rgba(255,255,255,.18); }
+  .bg-row .alpha-tag { font-size: 11px; color: #8a86a0; font-family: 'SF Mono', Consolas, monospace; }
+  .bg-row .fol { font-size: 11px; color: #6e6478; margin-left: auto; }
+  /* 逐行对齐：每行 comp-pair = 左右两格（grid 两列 stretch，行高取左右最大值 → 完全同一水平线） */
+  .comp-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; align-items: stretch; }
+  @media (max-width: 900px) { .comp-pair { grid-template-columns: 1fr; } }
+  .comp-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; background: rgba(10,10,18,.4); border: 1px solid rgba(255,255,255,.06); min-height: 52px; }
+  .comp-row.r-empty { visibility: hidden; }
+  .comp-row .lbl { flex: none; width: 92px; font-size: 12px; color: #b8b4c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .comp-row .ckey { flex: none; width: 66px; font-size: 10.5px; color: #6e6478; font-family: 'SF Mono', Consolas, monospace; }
+  .comp-row .hex-in { width: 92px; background: #16122a; color: #e8e6f0; border: 1px solid rgba(212,175,55,.3); border-radius: 6px; padding: 4px 8px; font-size: 12px; font-family: 'SF Mono', Consolas, monospace; }
+  .comp-row .hex-in:focus { outline: none; border-color: #d4af37; }
+  .comp-row .chip2 { flex: none; width: 34px; height: 20px; border-radius: 6px; border: 1px solid rgba(255,255,255,.18); }
+  /* 左侧第 5 列：真实元素样子（samples 单片嵌入；指针事件关闭，不参与交互） */
+  .comp-row .sample { flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+  .comp-row .sample iframe { width: 100%; height: 46px; border: none; pointer-events: none; transition: opacity .12s; }
+  .comp-row .sample .no-samp { font-size: 11px; color: #6e6478; }
+  /* 左侧第 6 列：不透明度滑块（针对第 5 列真实元素样子即时生效） */
+  .comp-row .alpha-box { flex: none; display: flex; align-items: center; gap: 5px; }
+  .comp-row .alpha-box input[type="range"] { width: 56px; accent-color: #d4af37; cursor: pointer; }
+  .comp-row .alpha-box .alpha-val { width: 26px; font-size: 10px; color: #8a86a0; font-family: 'SF Mono', Consolas, monospace; text-align: right; }
+  /* 右侧第 3 列：颜色选择器（调色盘，自由选色后点「应用」套到左侧该元素，不落盘） */
+  .comp-row .pick-col { width: 92px; height: 30px; padding: 0 2px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; background: #16122a; cursor: pointer; color: #ffffff; font-family: 'SF Mono', Consolas, monospace; font-size: 12px; }
+  /* 右侧第 5 列：应用按钮（把该行预设色套到左侧该元素，不落盘） */
+  .comp-row .btn-app { flex: none; padding: 5px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; border: 1px solid rgba(107,142,90,.55); background: rgba(107,142,90,.22); color: #eafff3; cursor: pointer; }
+  .comp-row .btn-app:hover { background: rgba(107,142,90,.42); }
+  .comp-row .btn-app:disabled { opacity: .45; cursor: not-allowed; }
+  .row-act { display: flex; gap: 12px; margin-top: 16px; }
+  .btn-act { padding: 8px 18px; border-radius: 9px; font-size: 13px; font-weight: 600; border: 1px solid rgba(212,175,55,.45); background: rgba(138,109,155,.25); color: #fdf0fa; cursor: pointer; }
+  .btn-act:hover { background: rgba(138,109,155,.4); }
+  .btn-act:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-write { border-color: rgba(107,142,90,.6); background: rgba(107,142,90,.25); color: #eafff3; }
+  .btn-write:hover { background: rgba(107,142,90,.45); }
+  /* 右侧：预设包 */
+  .pick { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #b8b4c8; margin-bottom: 12px; flex-wrap: wrap; }
+  .pick select { background: #16122a; color: #e8e6f0; border: 1px solid rgba(212,175,55,.35); border-radius: 8px; padding: 6px 10px; font-size: 13px; flex: 1; min-width: 0; }
+  .pick select:focus { outline: none; border-color: #d4af37; }
+  .pchip { border-radius: 8px; padding: 6px 9px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+  .pchip .pn { font-weight: 600; }
+  .pchip .ph { font-family: 'SF Mono', Consolas, monospace; opacity: .85; }
+  .note { margin-top: 22px; font-size: 12px; color: #8a86a0; line-height: 1.8; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; }
+  /* ═══ 胶囊 tab（独立保留）═══ */
+  .capsule-panel { border: 1px solid rgba(212,175,55,.25); border-radius: 14px; padding: 18px; background: rgba(24,18,34,.5); }
+  .capsule-panel h2 { font-size: 15px; margin-bottom: 4px; }
+  .capsule-panel .sub2 { font-size: 12px; color: #8a86a0; margin-bottom: 14px; line-height: 1.7; }
+  .capsule-row { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: rgba(10,10,18,.45); }
+  .capsule-row .cr-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .capsule-row .cr-key { font-family: 'SF Mono', Consolas, monospace; font-size: 12px; color: #e2c05a; font-weight: 600; }
+  .capsule-row .cr-sel { font-family: 'SF Mono', Consolas, monospace; font-size: 11px; color: #8a86a0; word-break: break-all; }
+  .capsule-row .cr-desc { font-size: 12px; color: #b8b4c8; line-height: 1.6; margin-bottom: 10px; }
+  .cr-controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .cr-ctl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #b8b4c8; }
+  .cr-ctl input[type="range"] { width: 110px; accent-color: #d4af37; }
+  .cr-ctl input[type="text"] { width: 90px; background: #16122a; color: #e8e6f0; border: 1px solid rgba(212,175,55,.3); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .cr-ctl select { background: #16122a; color: #e8e6f0; border: 1px solid rgba(212,175,55,.35); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .cr-save-row { margin-top: 14px; display: flex; align-items: center; gap: 12px; }
+  .btn-save-capsules { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid rgba(107,142,90,.55); background: rgba(107,142,90,.25); color: #eafff3; cursor: pointer; }
+  .btn-save-capsules:hover { background: rgba(107,142,90,.45); }
+  .btn-save-capsules:disabled { opacity: .45; cursor: not-allowed; }
+  .cr-build-hint { font-size: 11px; color: #6e6478; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(20,16,30,.95); border: 1px solid rgba(107,142,90,.5); color: #fdf0fa; padding: 8px 18px; border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<h1>🎨 dsh-theme-mediascape · 主题配色</h1>
+<div class="sub">左侧＝当前主题（真源 css）；右侧＝预设包（选预设 → 逐元素显示该预设颜色 → 每行「应用」/底部「全部」套到左侧，不落盘）；左侧「应用」＝唯一写盘入口（写真源 css + build）。</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="palette">配色</button>
+  <button class="tab" data-tab="capsule">胶囊</button>
+</div>
+
+<!-- ═══ 配色 tab ═══ -->
+<div class="tab-page active" id="tab-palette">
+  <div class="swatch-grid">
+    <div class="swatch-head">
+      <div class="hcell">
+        <span id="curLabel">…</span> <span class="badge badge-theme" id="curBadge">当前主题</span>
+        <span class="hint">真源 css 元素色；可手改 hex；「应用」才写盘</span>
+      </div>
+      <div class="hcell">
+        预设包 <span class="badge badge-preset">preset/</span>
+        <span class="hint">按元素显示所选预设颜色；无键→无色透明；应用套到左侧（不落盘）</span>
+        <span class="pick" style="margin:6px 0 0">选择预设 <select id="pickPreset"></select></span>
+      </div>
+    </div>
+    <div id="bgLayerPanel"></div>
+    <details class="reg-new" style="margin:8px 0;padding:8px 10px;border:1px solid rgba(212,175,55,.25);border-radius:10px;background:rgba(54,42,86,.25)">
+      <summary style="cursor:pointer;font-weight:600">➕ 新增元素（自动注册：输入宿主 className → 按规范添加，build 后生效）</summary>
+      <div class="reg-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <input id="regClassName" placeholder="className，如 K5p42G_textDocument" style="flex:2;min-width:220px;padding:6px 8px;border-radius:8px;background:rgba(10,12,18,.55);color:var(--dsw-static-neutral-00,#EAFFF3)" />
+        <select id="regZone" style="padding:6px;border-radius:8px;background:rgba(10,12,18,.55);color:#EAFFF3">
+          <option value="color">颜色区</option>
+          <option value="capsule">胶囊区</option>
+        </select>
+        <input id="regHex" placeholder="hex 缺省 #362A56" size="9" style="padding:6px 8px;border-radius:8px;background:rgba(10,12,18,.55);color:#EAFFF3" />
+        <input id="regAlpha" placeholder="α 缺省 1" size="4" style="padding:6px 8px;border-radius:8px;background:rgba(10,12,18,.55);color:#EAFFF3" />
+        <input id="regAnchor" placeholder="稳定锚点如 data-textpreview-plain（可选）" style="flex:2;min-width:200px;padding:6px 8px;border-radius:8px;background:rgba(10,12,18,.55);color:#EAFFF3" />
+        <button class="btn-act" id="btnReg" style="padding:6px 14px">注册</button>
+      </div>
+      <span class="hint" style="display:block;margin-top:6px">颜色区 → 配色盘出现元素行（可调色）+ 生成器/identity 自动应用底色；胶囊区 → 胶囊配方。锚点建议填 data-* 属性（类名 hash 会随宿主构建变）。</span>
+    </details>
+    <div id="pairList"></div>
+    <div class="swatch-foot">
+      <div class="fcell">
+        <button class="btn-act" id="btnResetL">↺ 重置（还原真源）</button>
+        <button class="btn-act btn-write" id="btnApplyL">⬇ 应用（真正写入）</button>
+      </div>
+      <div class="fcell">
+        <button class="btn-act btn-write" id="btnUsePreset" title="把右侧预设全部元素色套到左侧（← 方向，不落盘）">← 套到左侧（全部）</button>
+        <button class="btn-act" id="btnToRight" title="把左侧全部元素当前色套到右边（→ 方向；右列未定义元素随即可调色，保存预设自动并入）">→ 套到右边（全部）</button>
+        <button class="btn-act" id="btnExportP">⬇ 存为新预设</button>
+        <button class="btn-act" id="btnRenameP">✏️ 改名</button>
+      </div>
+    </div>
+  </div>
+  <div class="note" id="note"></div>
+</div>
+
+<!-- ═══ 胶囊 tab（独立保留，数据源 /api/capsules）═══ -->
+<div class="tab-page" id="tab-capsule">
+  <div class="capsule-panel" id="capsulePanel">
+    <h2>🧩 宿主元素配色（胶囊配方）</h2>
+    <div class="sub2">直接编辑 theme-studio/capsules.json 的胶囊配方（选择器/底色源/不透明度/圆角/padding/额外声明）。每条来自 theme-studio/class-catalog.json 的解释卡片。改完点「保存并 build 生效」写回 JSON → 重建 lib/client.js。</div>
+    <div id="capsuleList"></div>
+    <div class="cr-save-row">
+      <button class="btn-save-capsules" id="btnSaveCapsules">💾 保存并 build 生效</button>
+      <span class="cr-build-hint" id="capsuleBuildHint"></span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/vendor/jscolor.js"></script>
+<script src="js/theme-swatch.js"></script>
+</body>
+</html>

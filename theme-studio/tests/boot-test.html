@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>开屏动画验证宿主（无预览垫片）</title>
+<style>html,body{margin:0;background:#03070f;color:#eafff3;font-family:system-ui,sans-serif}</style>
+</head>
+<body>
+<!-- 开屏动画验证宿主（theme-studio/tests/ms-boot-render-check.mjs 使用）：
+     与 preview.html 的区别：不垫片 prefers-reduced-motion（真实 DSH 环境无该垫片，
+     headless 默认 reduce，因此此处强制 no-preference），只垫 ctx（effect+theme），
+     验证 playTransformIntro() → 渲染 .mediascape-dsh-boot 全链路。
+     注意：本页用 file:// 打开，fetch 不可用（scheme 不支持）→ loadBootGifConfig 回退
+     build 注入的 GIF_DATA，开屏仍正常渲染——fetch boot.json 的成功路径由
+     ms-boot-render-check.mjs 的 B 部分（HTTP 页面 runtime fetch）单独验证。 -->
+<script>
+// ── 垫片：__ModuleLoader__（DSH 客户端模块注册器，同 preview.html）──
+window.__ModuleLoader__ = {
+  load(def) { window.__FF_MOD__ = def; },
+};
+</script>
+<script>
+// 强制 no-preference（模拟真实浏览器默认；headless-shell 默认 reduce）
+(() => {
+  const orig = window.matchMedia ? window.matchMedia.bind(window) : null;
+  window.matchMedia = (query) => {
+    if (typeof query === 'string' && query.includes('prefers-reduced-motion')) {
+      return { matches: false, media: query, addEventListener() {}, removeEventListener() {} };
+    }
+    return orig ? orig(query) : { matches: false, media: String(query), addEventListener() {}, removeEventListener() {} };
+  };
+})();
+</script>
+<script src="../../lib/client.js"></script>
+<script>
+(function boot() {
+  const def = window.__FF_MOD__;
+  if (!def) { document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f66">client.js 未定义 __ModuleLoader__ 注册</pre>'); return; }
+  let exported;
+  try { exported = def.factory(() => { throw new Error('宿主不支持 require'); }); }
+  catch (e) { document.body.insertAdjacentHTML('beforeend', '<pre style="color:#f66">factory 失败: ' + e.message + '</pre>'); throw e; }
+  const fakeCtx = {
+    effect(cb) { const d = (typeof cb === 'function') ? cb() : undefined; return typeof d === 'function' ? d : () => {}; },
+    theme: {
+      register(cfg) { if (cfg && cfg.tokens) { for (const [k, v] of Object.entries(cfg.tokens)) document.documentElement.style.setProperty(k, v); } },
+      setTheme() {},
+    },
+  };
+  console.log('[boot-host] applying...');
+  exported.apply(fakeCtx);
+  console.log('[boot-host] apply done');
+})();
+</script>
+</body>
+</html>

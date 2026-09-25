@@ -1,0 +1,49 @@
+# ── 关于 lib/client.js ──
+# 提交「干净版」：node build.cjs --clean 生成（只含下方已提交素材）。
+# 本地跑完整构建 node build.cjs（含第三方壁纸）会变大，请勿误提交完整版。
+
+# ── 依赖与系统文件 ──
+node_modules/
+.DS_Store
+Thumbs.db
+
+# 构建产物：node build.cjs 生成，不提交（prepack 自动构建）
+lib/client.js
+node_modules.orig/
+
+# ── 新功能待办（会话中用户提出的全新功能需求，git 忽略不入库）──
+任务.md
+
+# ── 运行/临时文件（启停脚本 PID、预览日志、回收残留）──
+*.pid
+*.log
+*.trash*
+*.bak*
+
+
+
+# ── npm 打包产物（pnpm pack 生成，随 GitHub Release 分发）──
+*.tgz
+
+
+audit-history
+
+
+# ── 设计文档（不入库，工作区本地存档；docs/screenshots 截图目录除外）──
+docs/*
+!docs/screenshots/
+
+# ── 回收站（删除操作的安全中转，不入库）──
+.trash/
+
+# ── docs/screenshots 截图目录（PR 配图白名单：目录内其余截图忽略，只入库下方精选图）──
+# 注意：docs/ 整目录被忽略（上方），必须先 !docs/screenshots/ 解除目录忽略，白名单才生效
+docs/screenshots/*
+!docs/screenshots/dock.png
+!docs/screenshots/panel-景.png
+!docs/screenshots/panel-声.png
+!docs/screenshots/panel-景-选择壁纸.png
+!docs/screenshots/配色盘.jpeg
+
+# ── 积木脚本录像/截图产物（不入库）──
+test/e2e/records/

@@ -1,0 +1,10 @@
+{
+  "_comment": "开屏启动页动画配置。file=auto：自动取当前启用的视频壁纸做开屏（走 Range 流式），开屏播完把同一 video 元素移交壁纸层继续消费（同一份流式数据，不重复加载）；title/sub=标题与副标题；durationMs=兜底单段时长（默认 3000）。auto 模式下 files/durations 不参与，可留空。改配置刷新即生效。",
+  "files": [],
+  "durations": [],
+  "file": "auto",
+  "title": "",
+  "sub": "",
+  "durationMs": 3000,
+  "loop": false
+}

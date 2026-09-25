@@ -1,0 +1,20 @@
+{
+  "_comment": "统一资源配置（2026-09-21 目录结构改造）。两个字段：\n  sources：在线资源清单（hash 主键 40 位 hex，内容寻址，服务器下载后校验一致）。\n           name=显示文件名（带后缀，前端去后缀）、url=下载地址、kind=wallpaper|music（分流落盘：wallpaper/online/ 或 music/）。\n           主题启动时后台静默下载缺失项（断点续传 .part），已存在跳过（幂等）。\n  dirs：目录复制映射 { \"<仓库根目录名>\": \"<真实数据子目录名>\" }。\n        插件启动时把仓库根对应目录「整个目录」复制一份到 $DSH_HOME/theme-mediascape/<dst>/（仓库根保留，不删源），\n        只复制一次（目标已存在非空即跳过）。以后加目录只改这里，不用改代码。",
+  "sources": {
+    "ed711098c642474f802aec98d4f469d8e712a1ec": {
+      "name": "《崩坏：星穹铁道》知更鸟•晴歌角色PV——「追赶风的方向」.mp4",
+      "url": "https://fastcdn.mihoyo.com/content-v2/hkrpg/165882/e3c4087461e3d8277059f213995e4914_2552745935210549914.mp4",
+      "kind": "wallpaper"
+    },
+    "0f9e24b2cdd0acec7585bc2f3625ab130c385952": {
+      "name": "1e4d285bc5b00722a89cdc8e7e6f0eb9_7004359541597950027.png",
+      "url": "https://act-upload.mihoyo.com/sr-wiki/2023/11/16/279865110/1e4d285bc5b00722a89cdc8e7e6f0eb9_7004359541597950027.png",
+      "kind": "wallpaper"
+    }
+  },
+  "dirs": {
+    "music": "music",
+    "wallpaper": "wallpaper",
+    "boot":"boot"
+  }
+}

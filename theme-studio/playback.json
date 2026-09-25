@@ -1,0 +1,5 @@
+{
+  "comment": "启动播放策略（2026-09-21 阶段3）：控制视频壁纸 / 背景音乐在主题启动时是否自动播放。build.cjs 在构建时注入 PLAYBACK_CONFIG，wallpaper.js（视频）与 music-extract.js（音乐）读取。默认值（用户定稿）：视频自动播放 true、音乐自动播放 false。",
+  "videoAutoPlay": true,
+  "musicAutoPlay": false
+}
