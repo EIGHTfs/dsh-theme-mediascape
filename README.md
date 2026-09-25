@@ -28,6 +28,7 @@
 |---|---|---|
 
 
+| **mht 快照还原预览** | preview.html 直接解析 DSH 界面 .mht 快照还原为静态预览（聊天框+侧边栏+壁纸背景+dock），叠加假数据（操作日志→模拟用户消息、任务列表「预览页加载」自动完成、工作区一个文件夹一个会话）、侧边栏收起按 DSH 真实行为（会话列表 DOM 移除）、操作日志/顶部提示默认隐藏+「日志」开关 | `theme-studio/preview.html` |
 | **宿主元素配色** | 胶囊配方外置 JSON（选择器/背景源/透明度/圆角/padding）+ **层级注入**（按 parent 拓扑排序：父先子后、子级自然覆盖父级）+ 品牌区 `sidebar-brand` 独立键（lPcGpa_brand 背景+文字一体），取色器胶囊 tab 可编辑保存并自动 build | `theme-studio/capsules.json` |
 | **启动播放策略** | 视频壁纸/背景音乐启动时是否自动播放独立配置 | `theme-studio/playback.json` |
 | **开屏动画** | 启动页 gif/图片/视频多画面轮换 + 渐显式无黑屏窗口（浮层立即盖界面，等待期氛围粒子+呼吸光圈、媒体首帧就绪后渐变淡入）+ 可配置标题副标题 + 视频 Range 流式 + HTTP 缓存（ETag+If-Range 重播省 80% 流量）；`file:"auto"` 时开屏即当前视频壁纸（与壁纸层同一份流，播完移交、不重复加载） | `boot/boot.json` 配置 |
@@ -595,7 +596,7 @@ dsh-theme-mediascape（一个 GitHub 仓库，monorepo）
 
 ## 版本记录
 
-完整发布历史（含 1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
+完整发布历史（含 1.0.2 mht 快照还原预览、1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
 
 
 ## 注意事项

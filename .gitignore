@@ -50,3 +50,5 @@ test/e2e/records/
 
 # ── 运行时录像产物（不入库，仅精选 PNG 入库）──
 test/e2e/videos/*.webm
+# NFS 残留（打开文件删除标记，不入库）
+*.nfs*
