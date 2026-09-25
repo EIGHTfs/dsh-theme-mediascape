@@ -26,7 +26,7 @@ const mod = await import(pathToFileURL(join(ROOT, 'lib/handlers.js')).href + '?t
 const handleUpload = mod.handleUpload;
 const handleUploadPartDelete = mod.handleUploadPartDelete;
 
-// ── 假 req/res（真实 handler 只依赖 req.on/req.url/req.headers + res.writeHead/res.end）──
+// ── 假 req/fakeResp（真实 handler 只依赖 req.on/req.url/req.headers + fakeResp.writeHead/fakeResp.end）──
 function makeReq(reqUrl) {
   const req = new Readable({ read() {} });
   req.url = reqUrl;
@@ -34,16 +34,16 @@ function makeReq(reqUrl) {
   return req;
 }
 function makeRes() {
-  const res = {
+  const fakeResp = {
     status: 0, body: '', done: false,
     writeHead(st) { this.status = st; },
     end(d) { this.body = String(d || ''); this.done = true; },
   };
-  return res;
+  return fakeResp;
 }
-async function waitDone(res, timeout = 2000) {
+async function waitDone(fakeResp, timeout = 2000) {
   const t0 = Date.now();
-  while (!res.done && Date.now() - t0 < timeout) await new Promise((r) => setTimeout(r, 10));
+  while (!fakeResp.done && Date.now() - t0 < timeout) await new Promise((r) => setTimeout(r, 10));
 }
 async function pump(req, buf, chunkSize = 128 * 1024) {
   for (let off = 0; off < buf.length; off += chunkSize) {
@@ -66,8 +66,8 @@ try {
   let partSizeAfterHalf = -1;
   {
     const req = makeReq('/theme-mediascape-assets/upload?name=' + encodeURIComponent(name));
-    const res = makeRes();
-    handleUpload(req, res);
+    const fakeResp = makeRes();
+    handleUpload(req, fakeResp);
     // 只推一半就 destroy（模拟暂停：前端 abort 使连接中断）
     const halfBuf = full.subarray(0, half);
     for (let off = 0; off < halfBuf.length; off += 128 * 1024) {
@@ -88,14 +88,14 @@ try {
   {
     const offset = partSizeAfterHalf > 0 ? partSizeAfterHalf : 0;
     const req = makeReq('/theme-mediascape-assets/upload?name=' + encodeURIComponent(name) + '&offset=' + offset);
-    const res = makeRes();
-    handleUpload(req, res);
+    const fakeResp = makeRes();
+    handleUpload(req, fakeResp);
     // 只发剩余部分（offset 之后）
     const rest = full.subarray(offset);
     await pump(req, rest);
-    await waitDone(res);
-    const j = JSON.parse(res.body);
-    check('场景B：续传响应 200 ok', res.status === 200 && j.ok === true, `status=${res.status} ${JSON.stringify(j)}`);
+    await waitDone(fakeResp);
+    const j = JSON.parse(fakeResp.body);
+    check('场景B：续传响应 200 ok', fakeResp.status === 200 && j.ok === true, `status=${fakeResp.status} ${JSON.stringify(j)}`);
     check('场景B：响应 uploaded = 本次续传字节', typeof j.uploaded === 'number' && j.uploaded === full.length - offset,
       `uploaded=${j.uploaded} 期望=${full.length - offset}`);
     finalSize = statSync(join(wdir, name)).size;
@@ -109,11 +109,11 @@ try {
     const fakePart = '取消测试.mp4.part';
     writeFileSync(join(wdir, fakePart), 'partial-data');
     const req = makeReq('/theme-mediascape-assets/upload/part?name=' + encodeURIComponent('取消测试.mp4'));
-    const res = makeRes();
-    handleUploadPartDelete(req, res);
-    await waitDone(res);
-    const j2 = JSON.parse(res.body);
-    check('场景C：取消清理响应 ok', res.status === 200 && j2.ok === true, JSON.stringify(j2));
+    const fakeResp = makeRes();
+    handleUploadPartDelete(req, fakeResp);
+    await waitDone(fakeResp);
+    const j2 = JSON.parse(fakeResp.body);
+    check('场景C：取消清理响应 ok', fakeResp.status === 200 && j2.ok === true, JSON.stringify(j2));
     check('场景C：.part 已清理', !existsSync(join(wdir, fakePart)));
     check('场景C：返回 removed=1', j2.removed === 1, `removed=${j2.removed}`);
   }

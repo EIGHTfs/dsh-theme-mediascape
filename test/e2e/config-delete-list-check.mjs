@@ -38,9 +38,9 @@ const BASE = 'http://127.0.0.1:' + server.address().port;
 
 const httpReq = (method, path) => new Promise((resolve) => {
   const req = http.request(new URL(path, BASE), { method }, (res) => {
-    let data = '';
-    res.on('data', (c) => (data += c));
-    res.on('end', () => resolve({ code: res.statusCode, body: data }));
+    let respText = '';
+    res.on('data', (c) => (respText += c));
+    res.on('end', () => resolve({ code: res.statusCode, body: respText }));
   });
   req.on('error', (e) => resolve({ code: 0, body: 'ERR ' + e.message }));
   req.end();

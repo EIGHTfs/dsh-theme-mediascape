@@ -41,7 +41,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const BASE = 'http://127.0.0.1:' + server.address().port;
-const httpGet = (path) => fetch(BASE + path).then((r) => r.json());
+const httpGet = (path) => fetch(BASE + path, { signal: AbortSignal.timeout(10000) }).then((r) => r.json());
 
 // 前端 isItemUsable 判定契约（与 lib/client-parts/scenes/upload.js 公共函数同源）：
 // file/name 存在 且 size 为 ≥0 数字 = 磁盘 stat 成功（真实可用）；size null/undefined = 失效。
@@ -91,7 +91,7 @@ try {
 
   // ── 6. 移除音乐 → 按 music.json 一并删除封面 + 清登记录（定稿「移除=删文件，封面随 music.json 移除」）──
   writeFileSync(join(MUSIC_DIR, 'music.json'), JSON.stringify({ '歌曲1': { name: '歌曲1.mp3', cover: '歌曲1.png' } }, null, 2));
-  const del = await fetch(BASE + '/theme-mediascape-assets/music/' + encodeURIComponent('歌曲1.mp3'), { method: 'DELETE' }).then((r) => r.json());
+  const del = await fetch(BASE + '/theme-mediascape-assets/music/' + encodeURIComponent('歌曲1.mp3'), { method: 'DELETE', signal: AbortSignal.timeout(10000) }).then((r) => r.json());
   check('删除音乐响应 ok（含 cover 字段）', del.ok === true && del.cover === '歌曲1.png', JSON.stringify(del));
   check('歌曲1.mp3 已删除', !existsSync(join(MUSIC_DIR, '歌曲1.mp3')));
   check('封面 歌曲1.png 已按 music.json 一并删除', !existsSync(join(MUSIC_DIR, '歌曲1.png')));
@@ -102,12 +102,12 @@ try {
   writeFileSync(join(MUSIC_DIR, '歌曲2.mp3'), 'mp3-2');
   writeFileSync(join(MUSIC_DIR, '歌曲2.png'), 'infer-cover'); // 同名图片 = 推断封面（json 无 cover 记录）
   writeFileSync(join(MUSIC_DIR, 'music.json'), '{}');          // 不先列表 → json 未自动同步
-  const del2 = await fetch(BASE + '/theme-mediascape-assets/music/' + encodeURIComponent('歌曲2.mp3'), { method: 'DELETE' }).then((r) => r.json());
+  const del2 = await fetch(BASE + '/theme-mediascape-assets/music/' + encodeURIComponent('歌曲2.mp3'), { method: 'DELETE', signal: AbortSignal.timeout(10000) }).then((r) => r.json());
   check('删除响应 ok', del2.ok === true && del2.id === '歌曲2', JSON.stringify(del2));
   check('歌曲2.mp3 已删除', !existsSync(join(MUSIC_DIR, '歌曲2.mp3')));
   check('同名推断封面 歌曲2.png 也一并删除（不残留，重传不重现）', !existsSync(join(MUSIC_DIR, '歌曲2.png')));
   // 删除后 json 自动重新生成（再次列表按目录重建，不含被删项）
-  await fetch(BASE + '/theme-mediascape-assets/music/list');
+  await fetch(BASE + '/theme-mediascape-assets/music/list', { signal: AbortSignal.timeout(10000) });
   const jsonAfter = JSON.parse(await (await import('node:fs/promises')).readFile(join(MUSIC_DIR, 'music.json'), 'utf8').catch(() => '{}'));
   check('music.json 自动重建且不含被删项（歌曲2 无记录）', !jsonAfter['歌曲2'], JSON.stringify(jsonAfter));
 

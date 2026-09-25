@@ -49,7 +49,7 @@ try {
 
   // ② 外部 API 覆盖保存同名预设（btn-primary → 测试色）
   await page.evaluate(async (hex) => {
-    await fetch('/api/theme-export', {
+    await fetch('/api/theme-export', { signal: AbortSignal.timeout(10000),
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: '知更鸟·晴歌', css: JSON.stringify({ label: '知更鸟·晴歌', colors: { 'btn-primary': { hex, alpha: 1 } } }) }),
     });

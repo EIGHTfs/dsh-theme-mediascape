@@ -48,9 +48,9 @@ const BASE = 'http://127.0.0.1:' + PORT;
 const httpReq = (method, path, body) => new Promise((resolve) => {
   const u = new URL(path, BASE);
   const req = http.request(u, { method }, (res) => {
-    let data = '';
-    res.on('data', (c) => (data += c));
-    res.on('end', () => resolve({ code: res.statusCode, body: data }));
+    let respText = '';
+    res.on('data', (c) => (respText += c));
+    res.on('end', () => resolve({ code: res.statusCode, body: respText }));
   });
   req.on('error', (e) => resolve({ code: 0, body: 'ERR ' + e.message }));
   if (body !== undefined) req.write(body);

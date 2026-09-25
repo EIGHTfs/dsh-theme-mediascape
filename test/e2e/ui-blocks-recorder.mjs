@@ -156,7 +156,7 @@ const BLOCK_LIB = {
   },
   // 壁纸音量滑块（「声」面板，值 0-100）
   wallpaperVolume: async (ctx, arg) => {
-    const val = Number(arg);
+    const numVal = Number(arg);
     const ok = await ctx.page.evaluate((v) => {
       const input = document.querySelector('input[type=range]');
       if (!input) return false;

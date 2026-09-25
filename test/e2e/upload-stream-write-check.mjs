@@ -25,23 +25,23 @@ const check = (name, ok, detail) => {
 // 动态 import handlers.js（确保 DSH_HOME 已设）
 const handlers = await import(pathToFileURL(join(ROOT, 'lib/handlers.js')).href);
 
-// ── 构造假 req/res：req 是 Readable（可控制推送时机观察 .part 中间态）；res 收集响应 ──
+// ── 构造假 req/fakeResp：req 是 Readable（可控制推送时机观察 .part 中间态）；fakeResp 收集响应 ──
 function makeReqRes() {
   const req = new Readable({ read() {} });
-  const res = {
+  const fakeResp = {
     status: 0, headers: {}, body: '',
     done: false,
     resolved: Promise.resolve(),
     writeHead(st, hd) { this.status = st; this.headers = Object.assign({}, hd); },
     end(data) { this.body = String(data || ''); this.done = true; },
   };
-  // 给 res 加 donePromise：handler 内 `res.end(...)` 自动置 done，测试轮询等它
-  return { req, res };
+  // 给 fakeResp 加 donePromise：handler 内 `fakeResp.end(...)` 自动置 done，测试轮询等它
+  return { req, fakeResp };
 }
 // 等待响应完成（轮询 done 标志，最长 2s——handler 有 await sha1OfFile 等异步）
-async function waitDone(res, timeout = 2000) {
+async function waitDone(fakeResp, timeout = 2000) {
   const t0 = Date.now();
-  while (!res.done && Date.now() - t0 < timeout) {
+  while (!fakeResp.done && Date.now() - t0 < timeout) {
     await new Promise((r) => setTimeout(r, 10));
   }
 }
@@ -65,17 +65,17 @@ try {
   {
     const name = '测试视频.mp4';
     const content = Buffer.alloc(1024 * 1024, 7); // 1MB
-    const { req, res } = makeReqRes();
+    const { req, fakeResp } = makeReqRes();
     req.url = '/theme-mediascape-assets/upload?name=' + encodeURIComponent(name);
     let midFiles = [];
-    handlers.handleUpload(req, res);
+    handlers.handleUpload(req, fakeResp);
     await pump(req, content, 256 * 1024, () => {
       // 每块后记录中间态（.part/.tmp 都不应出现——上传中不落盘）
       midFiles.push(readdirSync(wdir).filter((f) => f.endsWith('.part') || f.endsWith('.tmp')));
     });
-    await waitDone(res);
-    const fin = JSON.parse(res.body);
-    check('场景1：响应 200 ok', res.status === 200 && fin.ok === true, JSON.stringify(fin));
+    await waitDone(fakeResp);
+    const fin = JSON.parse(fakeResp.body);
+    check('场景1：响应 200 ok', fakeResp.status === 200 && fin.ok === true, JSON.stringify(fin));
     check('场景1：上传过程中无 .part/.tmp 中间态（中途不落盘）', midFiles.every((arr) => arr.length === 0),
       `观测 ${midFiles.length} 次，中间态出现 ${midFiles.filter((a) => a.length).length} 次`);
     const finalFile = join(wdir, name);
@@ -88,10 +88,10 @@ try {
   {
     writeFileSync(join(wdir, '.upload-fake.part'), 'partial-data');
     writeFileSync(join(wdir, '孤儿.png.tmp'), 'partial-tmp');
-    const res = { status: 0, body: '', writeHead(st) { this.status = st; }, end(d) { this.body = String(d); } };
-    handlers.handleList(res);
-    await waitDone(res);
-    const list = JSON.parse(res.body);
+    const fakeResp = { status: 0, body: '', writeHead(st) { this.status = st; }, end(d) { this.body = String(d); } };
+    handlers.handleList(fakeResp);
+    await waitDone(fakeResp);
+    const list = JSON.parse(fakeResp.body);
     const hasPart = list.items.some((x) => x.url.includes('.part'));
     const hasTmp = list.items.some((x) => x.url.includes('.tmp'));
     check('场景2：列表排除 .part/.tmp 中间态', !hasPart && !hasTmp, `items=${list.items.length}`);
@@ -105,12 +105,12 @@ try {
     const name = '测试视频.mp4';
     const content = Buffer.alloc(1024 * 1024, 7);
     const before = readdirSync(wdir).length;
-    const { req, res } = makeReqRes();
+    const { req, fakeResp } = makeReqRes();
     req.url = '/theme-mediascape-assets/upload?name=' + encodeURIComponent(name);
-    handlers.handleUpload(req, res);
+    handlers.handleUpload(req, fakeResp);
     await pump(req, content);
-    await waitDone(res);
-    const fin = JSON.parse(res.body);
+    await waitDone(fakeResp);
+    const fin = JSON.parse(fakeResp.body);
     check('场景3：同内容复用 existing:true', fin.existing === true, JSON.stringify(fin));
     check('场景3：未新增文件、无 .part 残留', readdirSync(wdir).length === before && !readdirSync(wdir).some((f) => f.endsWith('.part')),
       `文件数 ${before} → ${readdirSync(wdir).length}`);
@@ -120,12 +120,12 @@ try {
   {
     const name = '测试视频.mp4';
     const content = Buffer.alloc(512 * 1024, 8); // 512KB ≠ 场景3 的 1MB（同名不同大小 → 加后缀落新盘）
-    const { req, res } = makeReqRes();
+    const { req, fakeResp } = makeReqRes();
     req.url = '/theme-mediascape-assets/upload?name=' + encodeURIComponent(name);
-    handlers.handleUpload(req, res);
+    handlers.handleUpload(req, fakeResp);
     await pump(req, content);
-    await waitDone(res);
-    const fin = JSON.parse(res.body);
+    await waitDone(fakeResp);
+    const fin = JSON.parse(fakeResp.body);
     check('场景4：同名不同大小 → (1) 后缀不覆盖', fin.existing === false && existsSync(join(wdir, '测试视频(1).mp4')),
       `响应=${JSON.stringify(fin)}`);
   }
@@ -140,12 +140,12 @@ try {
     // 把两个 .part 的 mtime 改为过期（2 天前），再触发一次上传 → cleanupOrphanParts（默认 24h）应全删
     const { utimesSync } = await import('node:fs');
     try { utimesSync(orphan, old, old); utimesSync(orphan2, old, old); } catch { /* 跳过 */ }
-    const { req, res } = makeReqRes();
+    const { req, fakeResp } = makeReqRes();
     const name2 = '孤儿触发.mp4';
     req.url = '/theme-mediascape-assets/upload?name=' + encodeURIComponent(name2);
-    handlers.handleUpload(req, res);
+    handlers.handleUpload(req, fakeResp);
     await pump(req, Buffer.alloc(1024, 1));
-    await waitDone(res);
+    await waitDone(fakeResp);
     check('场景5：上传触发时清理过期孤儿 .part（含暂停快照形态，mtime>24h）', !existsSync(orphan) && !existsSync(orphan2),
       `orphan 存在=${existsSync(orphan)} orphan2 存在=${existsSync(orphan2)}`);
   }

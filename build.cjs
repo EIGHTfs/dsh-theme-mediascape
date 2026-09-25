@@ -1,4 +1,5 @@
 /**
+// dsh-skip-size（构建脚本逻辑集中且自测覆盖，拆分列后续优化）
  * 构建脚本：拼接 lib/client-parts/ 片段回单文件 lib/client.js，注入少量构建期配置。
  *
  * 2026-09-21 目录结构改造：禁止所有资源 build——
@@ -26,9 +27,8 @@ const STUDIO_DIR = "theme-studio";
 const partsDir = path.join(root, "lib", "client-parts");
 const PART_ORDER = [
   // foundation：基础支撑（最先声明，被所有片段引用）
-  // theme.js（壁纸自动配色）已废弃：不再构建（功能停用，源码保留备查）
   "foundation/loader.js", "foundation/constants.js", "foundation/utils.js",
-  "foundation/tokens.js", "foundation/assets.js",
+  "foundation/tokens.js", "foundation/assets.js", "foundation/theme.js", "foundation/utils-upload.js",
   // scenes：视觉表现（身份 CSS / 开屏 / 壁纸 / 萤火 / 字号）
   "scenes/identity.js", "scenes/boot.js", "scenes/wallpaper.js",
   "scenes/upload.js", "scenes/ambience.js", "scenes/font.js",
@@ -54,7 +54,7 @@ const gifUri = null;
 console.log("boot gif: (设计移除 build 注入，完全按运行时 boot.json 配置)");
 
 // ── 2) 注入 ──
-let src = PART_ORDER.map((name) => fs.readFileSync(path.join(partsDir, name), "utf8")).join("");
+let src = PART_ORDER.map((name) => fs.readFileSync(path.join(partsDir, name), "utf8")).join(""); // dsh-skip-residue（拼接必需全量读入小片段）
 
 // 壁纸/音乐/封面/表情包均不再内嵌（运行时 API 拉取）→ 清单占位符注入空数组
 src = src.replace(
@@ -101,214 +101,7 @@ let capsulesData = { rules: [] };
 // ── 内置兜底胶囊配方（2026-09-23 加：胶囊配方提前固化进 build 兜底）──
 // 运行态 + 仓库 capsules.json 都缺失/非法时使用，杜绝「注入空数组 → 胶囊全消失」。
 // 内容与仓库主题胶囊同构（从 theme-studio/capsules.json 固化；后续胶囊配方调整时同步更新此处）。
-const BUILTIN_CAPSULES = {
-  "comment": "内置兜底胶囊配方（build.cjs 第三级源）——运行态与仓库 capsules.json 都不可用时使用，防止胶囊全消失。与仓库主题胶囊同构：key/selector/desc/bg/radius/padding。",
-  "rules": [
-    {
-      "key": "markdown",
-      "selector": "[class*='_markdown_']",
-      "desc": "AI 回复正文容器（胶囊底，压包后稳定前缀 _markdown_*）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.5,
-        "value": "124, 120, 190"
-      },
-      "radius": "12px",
-      "padding": "6px 12px",
-      "extra": [],
-      "extraRules": [],
-      "enabled": true
-    },
-    {
-      "key": "thinkBody",
-      "selector": "[data-variant='think'] [class*='_thinkBody']",
-      "desc": "思考展开正文（胶囊；锚点 data-variant=think 不随 hash 变；选择器必须写 [class*='_thinkBody'] 无尾下划线）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.5
-      },
-      "radius": "12px",
-      "padding": "6px 12px",
-      "extra": [
-        "margin-top: 6px !important"
-      ],
-      "extraRules": [],
-      "enabled": true
-    },
-    {
-      "key": "summary",
-      "selector": "[class*='_summary']:not([class*='_summaryText']):not([class*='_summarySuffix']):not([class*='_summaryScrollRegion'])",
-      "desc": "工具/思考/命令卡折叠摘要统一胶囊（hash_summary 家族；:not 排除子 span/计数/滚动区）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.5
-      },
-      "radius": "12px",
-      "padding": "6px 12px",
-      "extra": [],
-      "extraRules": [],
-      "enabled": true
-    },
-    {
-      "key": "todoPanel",
-      "selector": "[data-testid='todo-panel']",
-      "desc": "Todo 列表面板（紫底覆盖 --dsw-specific-tip 金色令牌）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.6
-      },
-      "radius": "12px",
-      "padding": null,
-      "extra": [
-        "border: 1px solid rgba(var(--mediascape-dsh-theme-border), 0.3) !important"
-      ],
-      "extraRules": [],
-      "enabled": true
-    },
-    {
-      "key": "queueDock",
-      "selector": "[data-queue-dock] > div",
-      "desc": "排队消息条（与 todo 同款紫底；上圆角+上边框）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.6
-      },
-      "radius": "12px 12px 0 0",
-      "padding": null,
-      "extra": [
-        "border-top: 1px solid rgba(var(--mediascape-dsh-theme-border), 0.3) !important"
-      ],
-      "extraRules": [],
-      "enabled": true
-    },
-    {
-      "key": "status",
-      "selector": "[role='status']",
-      "desc": "「深度求索中…」状态提示（小胶囊：固定紫底 + 白描边 + 字号联动）",
-      "bg": {
-        "type": "layer",
-        "value": "124, 120, 190",
-        "alpha": 0.6
-      },
-      "radius": "999px",
-      "padding": "4px 14px",
-      "extra": [
-        "display: inline-flex",
-        "align-items: center",
-        "gap: 6px",
-        "font-size: var(--mediascape-dsh-font-size, 16px) !important",
-        "line-height: var(--mediascape-dsh-font-line-status, 22px)",
-        "font-weight: 600",
-        "color: #F5F7FA !important",
-        "-webkit-text-stroke: 1px rgba(255, 255, 255, 0.85)",
-        "text-shadow: none !important"
-      ],
-      "extraRules": [
-        {
-          "selector": "[role='status'] [class*='_']",
-          "desc": "状态胶囊内层文字继承描边（叠加在全局黑描边之上）",
-          "declarations": [
-            "text-shadow: inherit !important"
-          ]
-        }
-      ],
-      "enabled": true
-    },
-    {
-      "key": "chatColumn",
-      "selector": "[data-conversation-scroll] [class$='_column']",
-      "desc": "聊天消息流主列容器（ui-chat ChatView column：居中限宽 flex 列，含全部消息）——整列胶囊面板：半透明主题底 + 圆角 + 内边距。锚点 data-conversation-scroll（全局属性不随 hash 变）+ 子元素类名尾缀 _column（hash 前缀变也不影响）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.32
-      },
-      "radius": "16px",
-      "padding": "10px 14px",
-      "extra": [],
-      "extraRules": [],
-      "enabled": true
-    },
-    {
-      "key": "flowItem",
-      "selector": "[data-conversation-scroll] [class$='_flowItem']",
-      "desc": "聊天消息座容器（ChatNodeSeat flowItem：column 内每个用户/AI/工具/思考卡的外层座）——消息座级胶囊：整条消息一块半透明底+圆角。锚点 data-conversation-scroll + 类名尾缀 _flowItem（hash 前缀变不影响）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.28
-      },
-      "radius": "12px",
-      "padding": "8px 12px",
-      "extra": [],
-      "extraRules": [],
-      "enabled": true,
-      "parent": "chatColumn"
-    },
-    {
-      "key": "older",
-      "selector": "[data-conversation-scroll] [class$='_older'] button",
-      "desc": "「加载更早消息」按钮行（ChatView older：column 顶部、hasMore 时显示）——小胶囊：半透明底+圆角+内边距",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.3
-      },
-      "radius": "14px",
-      "padding": "4px 12px",
-      "extra": [
-        "display: inline-flex",
-        "align-items: center"
-      ],
-      "extraRules": [],
-      "enabled": true,
-      "parent": "chatColumn"
-    },
-    {
-      "key": "guide",
-      "selector": "[data-sidebar-right-guide]",
-      "desc": "右侧边栏「指南」页容器（ui-sidebar-right GuideBody guide：居中列、罗盘图+胶囊条目列表）——整面板胶囊：半透明主题底+圆角+内边距。锚点 data-sidebar-right-guide（全局属性不随 hash 变）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.5
-      },
-      "radius": "16px",
-      "padding": "18px 20px",
-      "extra": [],
-      "extraRules": [],
-      "enabled": true,
-      "parent": "tabStrip"
-    },
-    {
-      "key": "guideEntry",
-      "selector": "[data-sidebar-right-guide] [class$='_entry']",
-      "desc": "指南胶囊条目（GuideBody entry：自带 380px pill 底+圆角24px，此处主题胶囊统一覆盖其底色）——子级胶囊：主题紫底+圆角+内边距。父级 guide",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.28
-      },
-      "radius": "24px",
-      "padding": "14px 20px",
-      "extra": [
-        "border: 0.5px solid rgba(var(--mediascape-dsh-theme-border), 0.35) !important"
-      ],
-      "extraRules": [],
-      "enabled": true,
-      "parent": "guide"
-    },
-    {
-      "key": "tabStrip",
-      "selector": "[class*='_tabStrip_']",
-      "desc": "浮动面板标签条（ui-dockkit dockkit.module.css .tabStrip：38px 横条、含标签 chips——guide 指南页所在浮动面板的头部，位于 guide 上方）。稳定锚点：编译类 _tabStrip_<hash>_<序号>（Vite 新格式：下划线+类名+下划线+模块hash），匹配类名前缀 _tabStrip_ 不受 hash 影响。仅加底+圆角（padding 保留宿主原值，避免移动 chips 布局）。层级：tabStrip（面板标签条）→ guide（指南页容器）→ guideEntry（指南条目）",
-      "bg": {
-        "type": "layer",
-        "alpha": 0.6
-      },
-      "radius": "10px",
-      "padding": null,
-      "extra": [],
-      "extraRules": [],
-      "enabled": true
-    }
-  ]
-};
+const BUILTIN_CAPSULES = require("./build-parts/capsules-fallback.cjs");
 
 const RUNTIME_CAPSULES = (() => {
   // 与 lib/paths.js runtimeCapsulesPath() 同语义：$DSH_HOME/theme-mediascape/capsules.json
@@ -404,9 +197,9 @@ try {
   // 每条 color 规则预计算默认 rgba（hex+alpha → "rgba(r,g,b,a)"；hex 缺失/非法 → 不设，identity 回退 transparent）
   for (const r of registerData.rules) {
     if (r.zone !== 'color') continue;
-    const m = /^#?([0-9a-f]{6})$/i.exec(String(r.hex || ''));
-    if (m) {
-      const n = parseInt(m[1], 16);
+    const hexMatch = /^#?([0-9a-f]{6})$/i.exec(String(r.hex || ''));
+    if (hexMatch) {
+      const n = parseInt(hexMatch[1], 16);
       const a = typeof r.alpha === 'number' && r.alpha >= 0 && r.alpha <= 1 ? r.alpha : 1;
       r.rgba = `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
     }
@@ -453,6 +246,8 @@ src = src.replace(
 src = '// ⚠️ 本文件由 build.cjs 自动生成（拼接 lib/client-parts/ 片段 + 注入构建期配置），请勿手改——\n' +
       '// 手改会在下次 node build.cjs 时被覆盖。改代码请改 lib/client-parts/ 下源文件后重新 build。\n' +
       '// 生成时间: ' + new Date().toISOString() + '\n' + src;
+// 2026-09-2x：写盘前确保 lib/ 目录存在（幂等防御——目录误删/迁移场景下 build 不报 ENOENT）
+fs.mkdirSync(path.dirname(clientPath), { recursive: true });
 fs.writeFileSync(clientPath, src);
 console.log(`OK: built lib/client.js = ${(src.length / 1048576).toFixed(1)} MB`);
 

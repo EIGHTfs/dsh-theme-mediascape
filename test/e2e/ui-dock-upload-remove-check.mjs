@@ -37,7 +37,7 @@ mkdirSync(VDIR, { recursive: true });
 for (const f of readdirSync(VDIR)) { try { rmSync(join(VDIR, f), { force: true }); } catch {} }
 
 const apiList = async (p) => {
-  const r = await fetch(BASE + p);
+  const r = await fetch(BASE + p, { signal: AbortSignal.timeout(10000) });
   return (await r.json()).items || [];
 };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

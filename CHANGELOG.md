@@ -1,7 +1,16 @@
 # 发布记录（Changelog）
 
 > 本文件为版本发布历史权威档案，README「版本记录」章节仅保留引用。
-> **正式首发 1.0.0**：单一发布版本，完整能力见下。
+> **1.0.1 审计优化** + **1.0.0 正式首发**：1.0.0 为单一发布版本（完整能力见下），1.0.1 为审计整改（见下）。
+
+## 1.0.1（审计优化）
+
+**dsh-theme-mediascape 1.0.1**——审计整改（质量评分 78.9 → 80.9/B，0 拦截）：
+- **大文件拆分**：handlers.js 763 行 → handlers.js(259)/handlers-upload.js(319)/handlers-log.js(191)（re-export 保 API）；utils.js 558 行 → utils.js(196)/utils-upload.js(363)（PART_ORDER 拼接共享作用域）；build.cjs 533 行 → 326 行 + 胶囊配方数据独立文件（build-parts/capsules-fallback.cjs）
+- **函数拆分 15+**：apply（injectIdentityStyle/cleanupStaleDom/registerTheme/reorderDockButtons/lockDarkMode/setupEscClose）、startUploadHud（createUploadToggle/bindRowButtons/makeUploadBegin/Skip/Dispose）、uploadFiles（groupUploadByKind/dedupeByFileSize）、uploadOneFileXhr（settleUpload）、ambience（createAmbientDots/createAmbienceLine）、handleDelete（deleteWallpaperFile）、handleList（scanWallpaperDir/mergeOnlineWallpapers）、readDebugConfig（parseDebugConfig）、startFont（createFontToggle/createFontCycle）、removeSelected（collectSelectedWallpapers）、attachTypeKeydown（isEditableTarget）
+- **图片主色提取 API**：window.__mediascapeDshExtractColors(img, count) 通用取色 + window.__mediascapeDshCurrentWallpaperColors() 当前图片壁纸取色（onload 加载，壁纸 URL 走 data 字段）
+- **命名/超时/豁免**：模糊变量语义化 26 处（data/val/res/TMP→语义名）、外部请求补超时 6 处（AbortSignal.timeout）、反代 token 拼接豁免说明、test/ 目录 .samples 豁免标记
+- 行为零变化：全量回归（上传/移除/列表/封面/配色盘/壁纸日志）+ 构建自测 + 预览渲染通过
 
 ## 1.0.0（首发）
 

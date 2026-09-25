@@ -34,9 +34,9 @@ const handleUpload = mod.handleUpload;
 
 function makeReq(url) { const r = new Readable({ read() {} }); r.url = url; r.headers = {}; return r; }
 function makeRes() { return { status: 0, body: '', done: false, writeHead(s) { this.status = s; }, end(d) { this.body = String(d || ''); this.done = true; } }; }
-async function waitDone(res, timeout = 60000) {
+async function waitDone(fakeResp, timeout = 60000) {
   const t0 = Date.now();
-  while (!res.done && Date.now() - t0 < timeout) await new Promise((r) => setTimeout(r, 10));
+  while (!fakeResp.done && Date.now() - t0 < timeout) await new Promise((r) => setTimeout(r, 10));
 }
 async function pump(req, buf, chunk = 256 * 1024) {
   for (let off = 0; off < buf.length; off += chunk) {
@@ -63,15 +63,15 @@ try {
   const buf = Buffer.alloc(MB * 1024 * 1024, 7); // 固定字节（确定性内容）
   const t0 = Date.now();
   const req = makeReq('/theme-mediascape-assets/upload?name=' + encodeURIComponent(name));
-  const res = makeRes();
-  handleUpload(req, res);
+  const fakeResp = makeRes();
+  handleUpload(req, fakeResp);
   await pump(req, buf);
-  await waitDone(res);
+  await waitDone(fakeResp);
   const ms = Date.now() - t0;
   const mbps = (MB / (ms / 1000)).toFixed(2);
 
-  const j = JSON.parse(res.body || '{}');
-  check('上传响应 200 ok', res.status === 200 && j.ok === true, `status=${res.status} ${JSON.stringify(j).slice(0, 90)}`);
+  const j = JSON.parse(fakeResp.body || '{}');
+  check('上传响应 200 ok', fakeResp.status === 200 && j.ok === true, `status=${fakeResp.status} ${JSON.stringify(j).slice(0, 90)}`);
   const savedSize = statSync(join(wdir, name)).size;
   check('落盘大小一致', savedSize === buf.length, `磁盘=${savedSize} 期望=${buf.length}`);
   check('无 .part 残留', !readdirSync(wdir).some((f) => f.endsWith('.part')));

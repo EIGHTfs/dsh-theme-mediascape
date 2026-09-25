@@ -1,0 +1,213 @@
+// 内置兜底胶囊配方（build.cjs 第三级源）——运行态与仓库 capsules.json 都不可用时使用，
+// 防止胶囊全消失。与仓库主题胶囊同构：key/selector/desc/bg/radius/padding。
+// 2026-09-2x 从 build.cjs 拆出（数据与逻辑分离，build.cjs 降至 400 行内）。
+const BUILTIN_CAPSULES = {
+  "comment": "内置兜底胶囊配方（build.cjs 第三级源）——运行态与仓库 capsules.json 都不可用时使用，防止胶囊全消失。与仓库主题胶囊同构：key/selector/desc/bg/radius/padding。",
+  "rules": [
+    {
+      "key": "markdown",
+      "selector": "[class*='_markdown_']",
+      "desc": "AI 回复正文容器（胶囊底，压包后稳定前缀 _markdown_*）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.5,
+        "value": "124, 120, 190"
+      },
+      "radius": "12px",
+      "padding": "6px 12px",
+      "extra": [],
+      "extraRules": [],
+      "enabled": true
+    },
+    {
+      "key": "thinkBody",
+      "selector": "[data-variant='think'] [class*='_thinkBody']",
+      "desc": "思考展开正文（胶囊；锚点 data-variant=think 不随 hash 变；选择器必须写 [class*='_thinkBody'] 无尾下划线）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.5
+      },
+      "radius": "12px",
+      "padding": "6px 12px",
+      "extra": [
+        "margin-top: 6px !important"
+      ],
+      "extraRules": [],
+      "enabled": true
+    },
+    {
+      "key": "summary",
+      "selector": "[class*='_summary']:not([class*='_summaryText']):not([class*='_summarySuffix']):not([class*='_summaryScrollRegion'])",
+      "desc": "工具/思考/命令卡折叠摘要统一胶囊（hash_summary 家族；:not 排除子 span/计数/滚动区）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.5
+      },
+      "radius": "12px",
+      "padding": "6px 12px",
+      "extra": [],
+      "extraRules": [],
+      "enabled": true
+    },
+    {
+      "key": "todoPanel",
+      "selector": "[data-testid='todo-panel']",
+      "desc": "Todo 列表面板（紫底覆盖 --dsw-specific-tip 金色令牌）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.6
+      },
+      "radius": "12px",
+      "padding": null,
+      "extra": [
+        "border: 1px solid rgba(var(--mediascape-dsh-theme-border), 0.3) !important"
+      ],
+      "extraRules": [],
+      "enabled": true
+    },
+    {
+      "key": "queueDock",
+      "selector": "[data-queue-dock] > div",
+      "desc": "排队消息条（与 todo 同款紫底；上圆角+上边框）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.6
+      },
+      "radius": "12px 12px 0 0",
+      "padding": null,
+      "extra": [
+        "border-top: 1px solid rgba(var(--mediascape-dsh-theme-border), 0.3) !important"
+      ],
+      "extraRules": [],
+      "enabled": true
+    },
+    {
+      "key": "status",
+      "selector": "[role='status']",
+      "desc": "「深度求索中…」状态提示（小胶囊：固定紫底 + 白描边 + 字号联动）",
+      "bg": {
+        "type": "layer",
+        "value": "124, 120, 190",
+        "alpha": 0.6
+      },
+      "radius": "999px",
+      "padding": "4px 14px",
+      "extra": [
+        "display: inline-flex",
+        "align-items: center",
+        "gap: 6px",
+        "font-size: var(--mediascape-dsh-font-size, 16px) !important",
+        "line-height: var(--mediascape-dsh-font-line-status, 22px)",
+        "font-weight: 600",
+        "color: #F5F7FA !important",
+        "-webkit-text-stroke: 1px rgba(255, 255, 255, 0.85)",
+        "text-shadow: none !important"
+      ],
+      "extraRules": [
+        {
+          "selector": "[role='status'] [class*='_']",
+          "desc": "状态胶囊内层文字继承描边（叠加在全局黑描边之上）",
+          "declarations": [
+            "text-shadow: inherit !important"
+          ]
+        }
+      ],
+      "enabled": true
+    },
+    {
+      "key": "chatColumn",
+      "selector": "[data-conversation-scroll] [class$='_column']",
+      "desc": "聊天消息流主列容器（ui-chat ChatView column：居中限宽 flex 列，含全部消息）——整列胶囊面板：半透明主题底 + 圆角 + 内边距。锚点 data-conversation-scroll（全局属性不随 hash 变）+ 子元素类名尾缀 _column（hash 前缀变也不影响）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.32
+      },
+      "radius": "16px",
+      "padding": "10px 14px",
+      "extra": [],
+      "extraRules": [],
+      "enabled": true
+    },
+    {
+      "key": "flowItem",
+      "selector": "[data-conversation-scroll] [class$='_flowItem']",
+      "desc": "聊天消息座容器（ChatNodeSeat flowItem：column 内每个用户/AI/工具/思考卡的外层座）——消息座级胶囊：整条消息一块半透明底+圆角。锚点 data-conversation-scroll + 类名尾缀 _flowItem（hash 前缀变不影响）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.28
+      },
+      "radius": "12px",
+      "padding": "8px 12px",
+      "extra": [],
+      "extraRules": [],
+      "enabled": true,
+      "parent": "chatColumn"
+    },
+    {
+      "key": "older",
+      "selector": "[data-conversation-scroll] [class$='_older'] button",
+      "desc": "「加载更早消息」按钮行（ChatView older：column 顶部、hasMore 时显示）——小胶囊：半透明底+圆角+内边距",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.3
+      },
+      "radius": "14px",
+      "padding": "4px 12px",
+      "extra": [
+        "display: inline-flex",
+        "align-items: center"
+      ],
+      "extraRules": [],
+      "enabled": true,
+      "parent": "chatColumn"
+    },
+    {
+      "key": "guide",
+      "selector": "[data-sidebar-right-guide]",
+      "desc": "右侧边栏「指南」页容器（ui-sidebar-right GuideBody guide：居中列、罗盘图+胶囊条目列表）——整面板胶囊：半透明主题底+圆角+内边距。锚点 data-sidebar-right-guide（全局属性不随 hash 变）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.5
+      },
+      "radius": "16px",
+      "padding": "18px 20px",
+      "extra": [],
+      "extraRules": [],
+      "enabled": true,
+      "parent": "tabStrip"
+    },
+    {
+      "key": "guideEntry",
+      "selector": "[data-sidebar-right-guide] [class$='_entry']",
+      "desc": "指南胶囊条目（GuideBody entry：自带 380px pill 底+圆角24px，此处主题胶囊统一覆盖其底色）——子级胶囊：主题紫底+圆角+内边距。父级 guide",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.28
+      },
+      "radius": "24px",
+      "padding": "14px 20px",
+      "extra": [
+        "border: 0.5px solid rgba(var(--mediascape-dsh-theme-border), 0.35) !important"
+      ],
+      "extraRules": [],
+      "enabled": true,
+      "parent": "guide"
+    },
+    {
+      "key": "tabStrip",
+      "selector": "[class*='_tabStrip_']",
+      "desc": "浮动面板标签条（ui-dockkit dockkit.module.css .tabStrip：38px 横条、含标签 chips——guide 指南页所在浮动面板的头部，位于 guide 上方）。稳定锚点：编译类 _tabStrip_<hash>_<序号>（Vite 新格式：下划线+类名+下划线+模块hash），匹配类名前缀 _tabStrip_ 不受 hash 影响。仅加底+圆角（padding 保留宿主原值，避免移动 chips 布局）。层级：tabStrip（面板标签条）→ guide（指南页容器）→ guideEntry（指南条目）",
+      "bg": {
+        "type": "layer",
+        "alpha": 0.6
+      },
+      "radius": "10px",
+      "padding": null,
+      "extra": [],
+      "extraRules": [],
+      "enabled": true
+    }
+  ]
+};
+
+module.exports = BUILTIN_CAPSULES;

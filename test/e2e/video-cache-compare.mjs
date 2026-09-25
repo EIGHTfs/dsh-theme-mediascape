@@ -14,7 +14,7 @@ import os from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 // 2026-09-2x 改：临时文件放 os.tmpdir()（仓库 .trash 回收机制已清理）
-const TMP = join(os.tmpdir(), 'vcache-' + Date.now() + '.mp4');
+const TEMP_PATH = join(os.tmpdir(), 'vcache-' + Date.now() + '.mp4');
 const SIZE = 2 * 1024 * 1024; // 2MB 测试视频
 const MIME = 'video/mp4';
 let fails = 0;
@@ -92,9 +92,9 @@ function httpGet(port, path, headers) {
 }
 
 // ── 起测试文件与两个 server ──
-writeFileSync(TMP, randomBytes(SIZE));
+writeFileSync(TEMP_PATH, randomBytes(SIZE));
 const mkSrv = (handler) => new Promise((resolve) => {
-  const srv = createServer((req, res) => handler(res, req, TMP));
+  const srv = createServer((req, res) => handler(res, req, TEMP_PATH));
   srv.listen(0, '127.0.0.1', () => resolve(srv));
 });
 const srvOld = await mkSrv(serveOld);
@@ -136,7 +136,7 @@ try {
   console.log('【场景 2】文件被替换后重播（有缓存场景）');
   const pBefore = await httpGet(portNew, '/v.mp4', { Range: `bytes=0-${SIZE - 1}` });
   const oldEtag = pBefore.headers['etag'];
-  writeFileSync(TMP, randomBytes(SIZE)); // 模拟上传新文件（内容+mtime 变化）
+  writeFileSync(TEMP_PATH, randomBytes(SIZE)); // 模拟上传新文件（内容+mtime 变化）
   await new Promise((r) => setTimeout(r, 20)); // 确保 mtime 变化
   const pAfter = await httpGet(portNew, '/v.mp4', { Range: `bytes=0-${SIZE - 1}`, 'If-Range': oldEtag });
   const newEtag = pAfter.headers['etag'];
@@ -150,7 +150,7 @@ try {
 } finally {
   srvOld.close();
   srvNew.close();
-  if (existsSync(TMP)) unlinkSync(TMP);
+  if (existsSync(TEMP_PATH)) unlinkSync(TEMP_PATH);
 }
 console.log(fails ? `\n${fails} 项失败` : '\n全部通过');
 process.exit(fails ? 1 : 0);

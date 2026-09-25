@@ -595,7 +595,7 @@ dsh-theme-mediascape（一个 GitHub 仓库，monorepo）
 
 ## 版本记录
 
-完整发布历史（含 1.0.0 首发说明与迭代要点）见 [CHANGELOG.md](CHANGELOG.md)。
+完整发布历史（含 1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
 
 
 ## 注意事项
