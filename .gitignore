@@ -30,8 +30,10 @@ audit-history
 
 
 # ── 设计文档（不入库，工作区本地存档；docs/screenshots 截图目录除外）──
+# 2026-09-26 白名单：官方宿主元素修改记录.md 入库（其余 docs 忽略）
 docs/*
 !docs/screenshots/
+!docs/官方宿主元素修改记录.md
 
 # ── 回收站（删除操作的安全中转，不入库）──
 .trash/
@@ -39,11 +41,10 @@ docs/*
 # ── docs/screenshots 截图目录（PR 配图白名单：目录内其余截图忽略，只入库下方精选图）──
 # 注意：docs/ 整目录被忽略（上方），必须先 !docs/screenshots/ 解除目录忽略，白名单才生效
 docs/screenshots/*
-!docs/screenshots/dock.png
-!docs/screenshots/panel-景.png
-!docs/screenshots/panel-声.png
-!docs/screenshots/panel-景-选择壁纸.png
-!docs/screenshots/配色盘.jpeg
+!docs/screenshots/preview.png
+!docs/screenshots/preview-启动动画.png
+!docs/screenshots/配色盘-颜色区.png
+!docs/screenshots/配色盘-胶囊区.png
 
 # ── 积木脚本录像/截图产物（不入库）──
 test/e2e/records/
