@@ -28,6 +28,7 @@
 |---|---|---|
 
 
+| **mht 快照还原预览** | preview.html 直接解析 DSH 界面 .mht 快照还原为静态预览（聊天框+侧边栏+壁纸背景+dock），叠加假数据（操作日志→模拟用户消息、任务列表「预览页加载」自动完成、工作区一个文件夹一个会话）、侧边栏收起按 DSH 真实行为（会话列表 DOM 移除）、操作日志/顶部提示默认隐藏+「日志」开关 | `theme-studio/preview.html` |
 | **宿主元素配色** | 胶囊配方外置 JSON（选择器/背景源/透明度/圆角/padding）+ **层级注入**（按 parent 拓扑排序：父先子后、子级自然覆盖父级）+ 品牌区 `sidebar-brand` 独立键（lPcGpa_brand 背景+文字一体），取色器胶囊 tab 可编辑保存并自动 build | `theme-studio/capsules.json` |
 | **启动播放策略** | 视频壁纸/背景音乐启动时是否自动播放独立配置 | `theme-studio/playback.json` |
 | **开屏动画** | 启动页 gif/图片/视频多画面轮换 + 渐显式无黑屏窗口（浮层立即盖界面，等待期氛围粒子+呼吸光圈、媒体首帧就绪后渐变淡入）+ 可配置标题副标题 + 视频 Range 流式 + HTTP 缓存（ETag+If-Range 重播省 80% 流量）；`file:"auto"` 时开屏即当前视频壁纸（与壁纸层同一份流，播完移交、不重复加载） | `boot/boot.json` 配置 |
@@ -47,6 +48,7 @@
 - **移除**：勾选后移除 = **真实删除服务器文件**（壁纸/音乐统一同一份删除逻辑：开始前/结束后各刷新一次列表，音乐封面随歌曲一并删除）
 - **随机**：随机模式走面板模式单按钮（循环/顺序/随机单按钮切换；选择器已去掉随机按钮）——进入随机后按当前层轮换，随机间隔自定义分钟（默认 5 分钟）；**随机/顺序作用于最上层**（视频开→视频层内切换，视频播完自动切下一张；关→图片层分钟定时切换）；**随机池跨层兼容**——池在图片模式勾选而当前是视频层（或反之）时自动回退当前层全部，视频播完仍会切换、不会停住
 - **切换日志**：每次壁纸切换（视频 ended 切下一张 / 图片定时随机 / 手动切壁纸 / 模式切换）自动上报一行到运行态 `$DSH_HOME/theme-mediascape/logs/wallpaper.log`（`GET /theme-mediascape-assets/wallpaper/log?lines=50` 可回读最近 N 行，自检/排查切换是否发生用）
+- **视频无缝切换预加载（2026-09-29）**：顺序/随机模式多视频轮换时，当前视频播放剩余 3s（`timeupdate` 阈值）即预创建并预缓冲下一视频（隐藏元素、`preload=auto`、未挂 DOM）；`ended` 切换时若预载目标命中且已就绪（`readyState≥2`）直接复用该元素（已缓冲数据，播放即出画面）——切换无加载间隙黑屏；未命中/未就绪照常新建不阻塞；关闭视频层/切换不匹配时自动清理预载（不占用连接）。
 - **添加壁纸**：dock「传」按钮统一入口（按**文件后缀**天然识别壁纸/音乐，一次多选统一分发）——上传立即生效并**服务器磁盘持久化**（`$DSH_HOME/theme-mediascape/wallpaper/`，刷新/重启/换浏览器都在）——上传视频（**mp4/webm**，浏览器原生可播）自动开视频层并加载它；上传图片更新图片层（视频开关状态不变）
   - **落盘 = 原始文件名**（不做 SHA 重命名；同名同大小视为重复复用，同名不同大小自动加 (1)(2)… 后缀）；前端直接显示文件名（去扩展名）
   - **中途不落盘**：上传数据先攒内存缓冲（上限=可用内存 20% 动态，`os.freemem()`），超限自动转写 `.upload-<traceId>.tmp` 保底（超大文件不 OOM）；上传过程中素材目录**不出现** `.part` 中间态，`end` 后正式文件落定（`finalizeUpload` 按「文件名+大小」去重)；**上传完成落定后自动清理同名孤儿 `.part` 快照**（上次中断/暂停未续传的残留，不留盘）
@@ -113,6 +115,7 @@
   开屏素材与壁纸素材合一，全程只发一次 Range 请求（开屏与壁纸层共用同一 `video` 元素、同一个流式数据）；
   开屏播完淡出时把该 `video` 元素移交给壁纸层继续播放（按 id 匹配接管、保留 src 不重载），无缝过渡、无第二次加载。
   机制：boot 解析阶段挂 `loading` 占位 → 壁纸层在 auto 解析完成前不自建视频 → 解析出目标 id 后同 id 则维持等待、不同 id 则恢复正常自建 → 开屏 finish 时挂出 `window.__mediascapeDshBootVideo` 移交对象 → 壁纸层 `renderLayers()` 按 id 接管同一元素。
+- **壁纸视频关闭时关闭守卫（2026-09-29）**：视频开关（`LS_BG_VIDEO`）非 `"1"`（视频壁纸未开/已关）时，`file:"auto"` 不再兜底首个视频——auto 解析返回空、开屏守卫关闭、无视频按 `durationMs` 正常淡出（不卡等待），避免「开屏播视频但壁纸层不消费移交」的错配。
 - 配置（运行态 `boot/boot.json`）：
 
 ```json
@@ -322,6 +325,8 @@ dsh-theme-mediascape/
 │   ├── bootstrap.js — 启动引导：按 sources.json dirs 整目录复制到真实数据目录
 │   ├── config.js — 配置：MIME 表 / 白名单 / 上传上限（statfs 动态）
 │   ├── debug.js — debug 配置读取（多开关 + 新键自动透传 + isDebug 判断）+ 运行态日志统一写入 writeLog（受 log 总开关控制）
+│   ├── handlers-log.js — （待注释）
+│   ├── handlers-upload.js — （待注释）
 │   ├── handlers.js — HTTP 处理器：删除 / 壁纸列表 / 音乐列表 / 上传
 │   ├── index.js — 入口：注册 /theme-mediascape-assets 前缀路由 + apply
 │   ├── labels.js — labels 映射读写（wallpaper.json / music.json）
@@ -331,11 +336,13 @@ dsh-theme-mediascape/
 │   ├── sources.json — 统一资源配置：sources 在线清单 + dirs 目录复制映射
 │   ├── client-parts/ — 浏览器端主题源码（片段，build 按序拼接）
 │   │   ├── apply.js — 客户端入口（ctx.effect 全量装配）
-│   │   └── …（16 个更深文件）
+│   │   └── …（17 个更深文件）
 ├── test/ — 测试（e2e 自检脚本）
+│   ├── .samples — （待注释）
 │   ├── run-all.mjs — 一键全量测试运行器（--only 单选 / --list 清单，自动探测 Playwright 环境）
 │   ├── e2e/ — e2e 自检（上传/断点续传/改名/缓存对比/降级/开屏）
 │   │   ├── api-error-paths-check.mjs — 服务端错误路径回归（400 扩展名/非法/409 续传/413 超限/删不存在/坏日志）
+│   │   ├── assert-file-usable-check.mjs — 素材「真实可用」判断（列表 stat 失效剔除/删除/移动/封面临删/music.json 清洗）
 │   │   ├── auto-console.mjs — 自动化控制台捕获自检
 │   │   ├── auto-diag.mjs — 自动化诊断输出
 │   │   ├── auto-final.mjs — 自动化最终验证
@@ -351,26 +358,40 @@ dsh-theme-mediascape/
 │   │   ├── boot-rotate-sim.mjs — 开屏多画面轮换模拟
 │   │   ├── boot-timeline.mjs — 开屏时间轴渲染检查
 │   │   ├── capsules-cache-fallback-check.mjs — 胶囊配方缓存兜底双向测试（源文件缺失用缓存副本）
-│   │   ├── assert-file-usable-check.mjs — 素材「真实可用」判断（列表 stat 失效剔除/删除/移动/封面临删/music.json 清洗）
-│   │   ├── config-delete-list-check.mjs — 配置/列表/删除回归（uploadAccept/列表过滤中间态）
+│   │   ├── config-delete-list-check.mjs — 配置/列表/删除回收回归（uploadAccept/列表/.trash 命名）
 │   │   ├── music-upload-cover-check.mjs — 音乐上传/复用/后缀/封面/列表回归
+│   │   ├── theme-swatch-jscolor-check.mjs — （待注释）
+│   │   ├── theme-swatch-preset-switch-check.mjs — （待注释）
+│   │   ├── theme-swatch-screenshots.mjs — （待注释）
+│   │   ├── ui-blocks-recorder.mjs — （待注释）
+│   │   ├── ui-dock-panels-screenshot.mjs — （待注释）
+│   │   ├── ui-dock-upload-remove-check.mjs — playwright 模拟点击全流程（上传/去重「已跳过」/壁纸音乐移除）
+│   │   ├── ui-media-no-overlap-check.mjs — （待注释）
 │   │   ├── upload-api-check.mjs — 上传 API 真实链路回归（走 30999 预览服务：壁纸/音乐/封面上传+列表+删除）
-│   │   ├── ui-dock-upload-remove-check.mjs — playwright 模拟点击全流程（上传/去重「已跳过」/壁纸音乐移除；含 MP4 录屏与关键步骤截图，产物存 videos/）
-│   │   ├── ui-dock-panels-screenshot.mjs — playwright 截图（dock 与五个二级面板/选择壁纸/选择歌单 → docs/screenshots/）
-│   │   ├── ui-media-no-overlap-check.mjs — 重复 apply 声音叠加修复验证（幂等清理先停媒体再删元素）
-│   │   ├── upload-resume-check.mjs — 断点续传集成测试（传一半中断→.part 快照→续传→落定）
-│   │   ├── upload-speed-check.mjs — 上传速度回归（内存缓冲吞吐）
-│   │   ├── upload-stream-write-check.mjs — 上传中间态测试（中途不落盘/复用/后缀/清理）
+│   │   ├── upload-resume-check.mjs — 断点续传集成测试（传一半中断→续传→落定）
+│   │   ├── upload-speed-check.mjs — 上传速度回归（流式写盘吞吐）
+│   │   ├── upload-stream-write-check.mjs — 上传流式写盘测试（.part 中间态/复用/后缀/清理）
 │   │   ├── video-cache-compare.mjs — 视频 HTTP 缓存对比（ETag+If-Range 省流量）
 │   │   ├── video-handoff-continuity-check.mjs — 视频壁纸移交连续性回归（boot 开屏→壁纸层 currentTime 连续不中断）
 │   │   ├── wallpaper-log-check.mjs — 壁纸切换日志链路回归（POST 落盘/GET 读回/开关拦截/非法 400）
+│   │   └── …（8 个更深文件）
+├── docs/ — （待注释）
+│   ├── 官方宿主元素修改记录.md — （待注释）
+│   ├── screenshots/ — 
+│   │   ├── preview-启动动画.png — （待注释）
+│   │   ├── preview.png — （待注释）
+│   │   ├── 配色盘-胶囊区.png — （待注释）
+│   │   ├── 配色盘-颜色区.png — （待注释）
 ├── boot/ — 开屏动画分发模板（启动复制到运行态读取）
 │   ├── boot.json — 开屏配置（file/files/title/sub/durationMs/loop）
-├── music/ — 音乐示例（启动复制到真实数据目录，仓库根保留）
-│   ├── 知更鸟_HOYO-MiX_Chevy-唯有追赶风的方向(Only_By_Chasing_the_Wind).mp3 — 音乐示例（内置音频）
+├── build-parts/ — （待注释）
+│   ├── capsules-fallback.cjs — （待注释）
+├── music/ — 音乐示例（启动复制到真实数据目录，仓库根保留）：知更鸟歌曲+封面
+│   ├── 知更鸟_HOYO-MiX_Chevy-唯有追赶风的方向(Only_By_Chasing_the_Wind).mp3 — 音乐示例（知更鸟 PV 音频）
 │   ├── 知更鸟_HOYO-MiX_Chevy-唯有追赶风的方向(Only_By_Chasing_the_Wind).png — 音乐示例封面
 ├── theme-studio/ — 预览环境（真实前后端）：start.sh + start-preview.mjs + preview.html + tests/
 │   ├── .test — 预览环境豁免标记（审计跳过目录）
+│   ├── README.md — （待注释）
 │   ├── capsules.json — 宿主元素胶囊配方（build 注入 + 取色器胶囊 tab 读写）
 │   ├── comps.json — 元素 class 控件配置（取色器左列角色：key/text/kind/color）
 │   ├── playback.json — 启动播放策略（videoAutoPlay / musicAutoPlay，build 注入）
@@ -380,9 +401,11 @@ dsh-theme-mediascape/
 │   ├── theme-swatch.html — 配色取色器（双 tab：配色单真源+预设 / 胶囊宿主元素）
 │   ├── js/ — 取色器 JS 资源
 │   │   ├── theme-swatch.js — 取色器交互脚本（配色+预设+胶囊读写）
+│   │   └── …（1 个更深文件）
 │   ├── json/ — 配色 V2 真源目录
 │   │   ├── theme-capsules.json — 胶囊配方 JSON（build.cjs 读取注入）
 │   │   ├── theme-colors.json — 配色真源（label/badge + bg 系 + 全部元素色，每色带 alpha）
+│   │   ├── theme-register.json — （待注释）
 │   │   └── …（3 个更深文件）
 │   ├── samples/ — 宿主元素样式样例（取色器 samples 分片）
 │   │   ├── btn-primary.html — 样例：主按钮（btn-primary）
@@ -409,13 +432,13 @@ dsh-theme-mediascape/
 │   │   ├── ms-split-equivalence.mjs — 片段拆分等价性检查
 ├── .gitattributes — git 属性（换行符/语言标记）
 ├── .gitignore — 忽略规则（产物/依赖/任务清单）
+├── CHANGELOG.md — （待注释）
 ├── LICENSE — 开源许可
-├── CHANGELOG.md — 发布记录（版本历史权威档案，README「版本记录」章节引用）
 ├── README.md — 项目说明（功能/结构/使用/自测）
 ├── build.cjs — 构建：client-parts 片段按 PART_ORDER 拼回单文件 + 注入构建期配置
 ├── cordis.patch.yml — 宿主组合 patch（客户端模块装载声明）
 ├── package.json — dsh.client 声明（web 插件，注入 ui-theme 槽位）
-├── screenshots.json — PR 配图清单（awesome-dsh-plugin 规范：docs/screenshots/ 精选图相对路径数组）
+├── screenshots.json — （待注释）
 ├── tree-doc.json — README 目录树索引（git-push 插件 tree-doc 维护：键=文件路径，值=一句话介绍）
 ```
 <!-- dshgp-tree:end -->
@@ -595,7 +618,7 @@ dsh-theme-mediascape（一个 GitHub 仓库，monorepo）
 
 ## 版本记录
 
-完整发布历史（含 1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
+完整发布历史（含 1.0.2 mht 快照还原预览、1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
 
 
 ## 注意事项
@@ -604,3 +627,735 @@ dsh-theme-mediascape（一个 GitHub 仓库，monorepo）
 - **素材不内嵌**：`lib/client.js` 仅含配置与逻辑（约 188KB），壁纸/音乐/开屏全部由服务端静态路由与运行时 API 提供
 - **可读性设计**：中间画面全透明 + 全局文字描边 + 深色半透明衬底——任意壁纸下文字可读（无毛玻璃）
 - **隐私**：本主题纯客户端，无任何遥测/外部请求（在线资源仅按 `sources.json` 显式登记下载）
+
+<!-- dshgp-functions:start -->
+## 函数列表
+
+### lib/bootstrap.js（93 行 · 5 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `loadDirMigrations` | 27-40 | 14 | `function loadDirMigrations() {` |
+| `copyOnce` | 49-66 | 18 | `function copyOnce(srcName, dstName) {` |
+| `copyInto` | 69-73 | 5 | `function copyInto(s, d) {` |
+| `copyDirInto` | 76-84 | 9 | `function copyDirInto(src, dst) {` |
+| `bootstrapDataDirs` | 87-92 | 6 | `export function bootstrapDataDirs() {` |
+
+### lib/client-parts/apply.js（155 行 · 11 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `injectIdentityStyle` | 7-14 | 8 | `function injectIdentityStyle() {` |
+| `cleanupStaleDom` | 21-35 | 15 | `function cleanupStaleDom() {` |
+| `stopMedia` | 22-27 | 6 | `const stopMedia = (root) => {` |
+| `registerTheme` | 38-49 | 12 | `function registerTheme(ctx) {` |
+| `reorderDockButtons` | 53-58 | 6 | `function reorderDockButtons(dock) {` |
+| `btnByText` | 55-55 | 1 | `const btnByText = (t) => allBtns.find((b) => b.textContent === t);` |
+| `lockDarkMode` | 61-70 | 10 | `function lockDarkMode() {` |
+| `enforce` | 62-65 | 4 | `const enforce = () => {` |
+| `setupEscClose` | 73-82 | 10 | `function setupEscClose(dock) {` |
+| `onEsc` | 74-79 | 6 | `const onEsc = (e) => {` |
+| `apply` | 84-147 | 64 | `function apply(ctx) {` |
+
+### lib/client-parts/foundation/constants.js（49 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `migrateLegacyKeys` | 35-44 | 10 | `function migrateLegacyKeys() {` |
+
+### lib/client-parts/foundation/theme.js（95 行 · 4 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `extractColors` | 13-53 | 41 | `function extractColors(img, count = 5) {` |
+| `loadImage` | 63-70 | 8 | `function loadImage(url) {` |
+| `currentWallpaperColors` | 77-92 | 16 | `async function currentWallpaperColors() {` |
+| `wallpaper` | 82-82 | 1 | `const wallpaper = (id ? items.find((x) => x.id === id) : null)` |
+
+### lib/client-parts/foundation/utils-upload.js（396 行 · 21 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `buildUploadRowEl` | 2-31 | 30 | `function buildUploadRowEl() {` |
+| `makeUploadBegin` | 56-78 | 23 | `function makeUploadBegin(ops, root, refresh) {` |
+| `makeUploadSkip` | 81-95 | 15 | `function makeUploadSkip(ops, root, rows, refresh) {` |
+| `makeUploadDispose` | 98-105 | 8 | `function makeUploadDispose(btn, panel, onDocClick) {` |
+| `createUploadToggle` | 107-120 | 14 | `function createUploadToggle(dockEl) {` |
+| `bindRowButtons` | 123-131 | 9 | `function bindRowButtons(r, controls) {` |
+| `startUploadHud` | 133-179 | 47 | `function startUploadHud(dock) {` |
+| `onDocClick` | 144-149 | 6 | `const onDocClick = (e) => {` |
+| `refresh` | 155-165 | 11 | `function refresh() {` |
+| `runUploadXhr` | 192-208 | 17 | `function runUploadXhr(url, body, onProgress) {` |
+| `settleUpload` | 218-226 | 9 | `function settleUpload(uploadResult, userPaused, userCancelled, hud) {` |
+| `uploadOneFileXhr` | 228-277 | 50 | `function uploadOneFileXhr(file, kind) {` |
+| `run` | 255-265 | 11 | `const run = () => {` |
+| `classifyUploadFile` | 287-292 | 6 | `function classifyUploadFile(f) {` |
+| `isItemUsable` | 296-298 | 3 | `function isItemUsable(item) {` |
+| `refreshList` | 301-306 | 6 | `async function refreshList(kind) {` |
+| `groupUploadByKind` | 311-319 | 9 | `function groupUploadByKind(files, hud) {` |
+| `dedupeByFileSize` | 323-335 | 13 | `function dedupeByFileSize(files, kind, hud) {` |
+| `uploadFiles` | 337-360 | 24 | `async function uploadFiles(files) {` |
+| `removeItems` | 364-380 | 17 | `async function removeItems(items) {` |
+| `deleteServerFile` | 382-392 | 11 | `function deleteServerFile(item) {` |
+
+### lib/client-parts/foundation/utils.js（166 行 · 11 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `withMediaToken` | 7-14 | 8 | `function withMediaToken(url) {` |
+| `ffFetch` | 26-40 | 15 | `async function ffFetch(url, opts = {}, timeoutMs = FF_FETCH_TIMEOUT_MS) {` |
+| `fmtBytes` | 43-44 | 2 | `function fmtBytes(n) { return n >= BYTES_PER_MB ? (n / BYTES_PER_MB).toFixed(1) + " MB" : (n / BYTES_PER_KB).toFixed(0) + " KB"; }` |
+| `fmtSpeed` | 44-45 | 2 | `function fmtSpeed(bps) { return bps >= BYTES_PER_MB ? (bps / BYTES_PER_MB).toFixed(1) + " MB/s" : (bps / BYTES_PER_KB).toFixed(0) + " KB/s"; }` |
+| `createRowOps` | 46-94 | 49 | `function createRowOps(rows, refresh) {` |
+| `ffIdbOpen` | 102-115 | 14 | `function ffIdbOpen() {` |
+| `ffIdbGetAll` | 116-122 | 7 | `function ffIdbGetAll(store) {` |
+| `ffIdbPut` | 123-130 | 8 | `function ffIdbPut(store, record) {` |
+| `ffIdbDelete` | 131-138 | 8 | `function ffIdbDelete(store, key) {` |
+| `PickerGuard` | 153-165 | 13 | `function PickerGuard() {` |
+| `restore` | 157-161 | 5 | `const restore = () => {` |
+
+### lib/client-parts/scenes/ambience.js（104 行 · 4 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `createAmbientDots` | 14-33 | 20 | `function createAmbientDots(wrap, maxCount) {` |
+| `createAmbienceLine` | 36-53 | 18 | `function createAmbienceLine(dock, panel, onCycle) {` |
+| `startAmbience` | 55-104 | 50 | `function startAmbience(dock) {` |
+| `setLevel` | 71-90 | 20 | `function setLevel(key, instant) {` |
+
+### lib/client-parts/scenes/boot.js（415 行 · 21 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `resolveAutoBootVideo` | 24-43 | 20 | `async function resolveAutoBootVideo(listData) {` |
+| `pick` | 40-40 | 1 | `const pick = (saved && vids.find((w) => w.id === saved)) \|\| vids[0];` |
+| `loadBootGifConfig` | 44-101 | 58 | `async function loadBootGifConfig() {` |
+| `buildBootOverlay` | 108-140 | 33 | `function buildBootOverlay() {` |
+| `finishBootIntro` | 146-179 | 34 | `function finishBootIntro(ov, st) {` |
+| `bootRotateTo` | 183-207 | 25 | `function bootRotateTo(ov, urls, index, st) {` |
+| `bootStartRotate` | 210-231 | 22 | `function bootStartRotate(ov, urls, st) {` |
+| `segMs` | 215-218 | 4 | `const segMs = (i) => {` |
+| `step` | 219-229 | 11 | `const step = () => {` |
+| `playTransformIntro` | 233-284 | 52 | `function playTransformIntro() {` |
+| `waitBootMediaReady` | 287-323 | 37 | `function waitBootMediaReady(el, timeoutMs) {` |
+| `isReadyNow` | 292-295 | 4 | `function isReadyNow() {` |
+| `cleanup` | 296-309 | 14 | `function cleanup(clear, ok) {` |
+| `onOk` | 310-311 | 2 | `function onOk() { cleanup(true, true); }` |
+| `onErr` | 311-312 | 2 | `function onErr() { cleanup(true, false); }` |
+| `showBootOverlay` | 330-414 | 85 | `function showBootOverlay(mediaEl, urls) {` |
+| `finish` | 342-359 | 18 | `const finish = () => {` |
+| `rotateTo` | 364-388 | 25 | `function rotateTo(index, urls2) {` |
+| `segMs` | 391-394 | 4 | `function segMs(index) {` |
+| `startRotate` | 395-412 | 18 | `function startRotate(urls2) {` |
+| `step` | 399-409 | 11 | `const step = () => {` |
+
+### lib/client-parts/scenes/font.js（87 行 · 6 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `createFontToggle` | 13-21 | 9 | `function createFontToggle(dock) {` |
+| `createFontCycle` | 24-66 | 43 | `function createFontCycle(btn, applyScale) {` |
+| `setLevel` | 34-42 | 9 | `function setLevel(key) {` |
+| `restore` | 50-53 | 4 | `function restore(key) {` |
+| `startFont` | 68-86 | 19 | `function startFont(dock) {` |
+| `applyScale` | 71-84 | 14 | `function applyScale(scale) {` |
+
+### lib/client-parts/scenes/identity.js（472 行 · 4 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `registerColorCSS` | 17-24 | 8 | `function registerColorCSS() {` |
+| `capsuleCSS` | 35-69 | 35 | `function capsuleCSS() {` |
+| `visit` | 41-47 | 7 | `function visit(r) {` |
+| `identityCSS` | 467-470 | 4 | `function identityCSS() {` |
+
+### lib/client-parts/scenes/upload.js（146 行 · 5 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `syncBgEnabledUI` | 41-50 | 10 | `function syncBgEnabledUI() {` |
+| `setBgEnabled` | 51-58 | 8 | `function setBgEnabled(on) {` |
+| `onBgDocClick` | 70-76 | 7 | `const onBgDocClick = (e) => {` |
+| `defaultWallpaper` | 101-105 | 5 | `function defaultWallpaper() {` |
+| `initWallpaper` | 107-130 | 24 | `async function initWallpaper() {` |
+
+### lib/client-parts/scenes/wallpaper.js（593 行 · 33 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `startWallpaper` | 2-593 | 592 | `function startWallpaper(dock) {` |
+| `loadIdSet` | 9-12 | 4 | `function loadIdSet(key) {` |
+| `saveIdSet` | 13-15 | 3 | `function saveIdSet(key, set) {` |
+| `syncModeBtn` | 91-96 | 6 | `function syncModeBtn() {` |
+| `updateIntervalLine` | 103-105 | 3 | `function updateIntervalLine() {` |
+| `updateVideoToggle` | 107-114 | 8 | `function updateVideoToggle() {` |
+| `logSwitch` | 132-148 | 17 | `function logSwitch(extra) {` |
+| `disposeVideoEl` | 156-159 | 4 | `function disposeVideoEl(el) {` |
+| `renderImageLayer` | 161-174 | 14 | `function renderImageLayer() {` |
+| `renderVideoLayer` | 176-264 | 89 | `function renderVideoLayer() {` |
+| `unmute` | 251-255 | 5 | `const unmute = () => {` |
+| `renderLayers` | 265-291 | 27 | `function renderLayers() {` |
+| `showByIndex` | 310-316 | 7 | `function showByIndex(kind, idx) {` |
+| `toggleVideo` | 320-330 | 11 | `function toggleVideo(on) {` |
+| `activeArr` | 332-333 | 2 | `function activeArr() { return videoOn ? vids : imgs; }` |
+| `showItem` | 334-342 | 9 | `function showItem(item) {` |
+| `doSwitch` | 344-348 | 5 | `function doSwitch() {` |
+| `onVideoEnded` | 353-359 | 7 | `function onVideoEnded() {` |
+| `onVideoError` | 363-371 | 9 | `function onVideoError() {` |
+| `randomCandidates` | 373-380 | 8 | `function randomCandidates() {` |
+| `doRandom` | 382-390 | 9 | `function doRandom() {` |
+| `clearRandom` | 392-393 | 2 | `function clearRandom() { if (randomTimer) { clearTimeout(randomTimer); randomTimer = null; } }` |
+| `scheduleRandom` | 394-403 | 10 | `function scheduleRandom() {` |
+| `setMode` | 405-422 | 18 | `function setMode(m) {` |
+| `setIntervalMinutes` | 424-429 | 6 | `function setIntervalMinutes(v) {` |
+| `closePanel` | 431-432 | 2 | `function closePanel() { panel.classList.remove("open"); }` |
+| `closePicker` | 434-435 | 2 | `function closePicker() { picker.classList.remove("open"); }` |
+| `updatePickerActions` | 436-441 | 6 | `function updatePickerActions() {` |
+| `buildPicker` | 443-489 | 47 | `function buildPicker() {` |
+| `openPicker` | 492-498 | 7 | `function openPicker() {` |
+| `collectSelectedWallpapers` | 502-509 | 8 | `function collectSelectedWallpapers(ids) {` |
+| `removeSelected` | 513-526 | 14 | `async function removeSelected() {` |
+| `loadCustomWallpapers` | 551-574 | 24 | `async function loadCustomWallpapers(refresh) {` |
+
+### lib/client-parts/sound/music-extract.js（247 行 · 12 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `startMusic` | 5-247 | 243 | `async function startMusic(dock) {` |
+| `loadIdSet` | 7-10 | 4 | `function loadIdSet(key) {` |
+| `saveIdSet` | 11-13 | 3 | `function saveIdSet(key, set) {` |
+| `fillList` | 23-44 | 22 | `async function fillList() {` |
+| `parseSyncsafeSize` | 69-70 | 2 | `function parseSyncsafeSize(v, i) { return ((v[i] & 127) << 21) \| ((v[i + 1] & 127) << 14) \| ((v[i + 2] & 127) << 7) \| (v[i + 3] & 127); }` |
+| `readFourCC` | 70-71 | 2 | `function readFourCC(v, i) { return String.fromCharCode(v[i], v[i + 1], v[i + 2], v[i + 3]); }` |
+| `str` | 71-83 | 13 | `function str(v, s, e) { let r = ""; for (let i = s; i < e && i < v.length; i++) r += String.fromCharCode(v[i]); return r; }` |
+| `flacPicture` | 72-83 | 12 | `function flacPicture(b) {` |
+| `u32` | 73-73 | 1 | `const u32 = (i) => ((b[i] << 24) >>> 0) \| ((b[i + 1] << 16)) \| ((b[i + 2] << 8)) \| b[i + 3];` |
+| `extractCover` | 84-136 | 53 | `function extractCover(buf) {` |
+| `dataUriToBuffer` | 137-153 | 17 | `function dataUriToBuffer(uri) {` |
+| `resolveCover` | 154-182 | 29 | `async function resolveCover(item) {` |
+
+### lib/client-parts/sound/music-player.js（348 行 · 21 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `fmt` | 1-6 | 6 | `function fmt(t) {` |
+| `setCoverImage` | 7-13 | 7 | `function setCoverImage(url) { coverEl.style.backgroundImage = 'url("' + url + '")'; lblEl.style.display = "none"; }` |
+| `setCoverFallback` | 8-13 | 6 | `function setCoverFallback(item) {` |
+| `updateDisc` | 14-26 | 13 | `function updateDisc(item) {` |
+| `refresh` | 27-36 | 10 | `function refresh() {` |
+| `loadAndPlay` | 38-50 | 13 | `function loadAndPlay(i) {` |
+| `expandCard` | 52-55 | 4 | `function expandCard() {` |
+| `collapseMini` | 56-59 | 4 | `function collapseMini() {` |
+| `openPicker` | 60-66 | 7 | `function openPicker() {` |
+| `closePicker` | 67-68 | 2 | `function closePicker() { picker.classList.remove("open"); }` |
+| `toggle` | 69-86 | 18 | `function toggle() {` |
+| `shuffleCandidates` | 88-91 | 4 | `function shuffleCandidates() {` |
+| `next` | 92-106 | 15 | `function next() {` |
+| `prev` | 107-108 | 2 | `function prev() { if (list.length === 0) return; loadAndPlay(current > 0 ? current - 1 : list.length - 1); }` |
+| `cycleMode` | 109-114 | 6 | `function cycleMode() {` |
+| `setMode` | 115-121 | 7 | `function setMode(modeValue) {` |
+| `updatePickerActions` | 123-127 | 5 | `function updatePickerActions() {` |
+| `buildPicker` | 128-161 | 34 | `function buildPicker() {` |
+| `removeSelectedSongs` | 162-195 | 34 | `async function removeSelectedSongs() {` |
+| `setCover` | 201-249 | 49 | `function setCover() {` |
+| `onDocClick` | 310-315 | 6 | `const onDocClick = (e) => {` |
+
+### lib/client-parts/sound/typesound.js（265 行 · 21 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `ensureTypeAudio` | 25-31 | 7 | `function ensureTypeAudio() {` |
+| `typeNoiseBuffer` | 32-40 | 9 | `function typeNoiseBuffer(ctx) {` |
+| `playTypeClick` | 41-73 | 33 | `function playTypeClick(key, style) {` |
+| `pick` | 46-46 | 1 | `const pick = (v) => (soft ? v.soft : v.crisp);` |
+| `buildVolumeLine` | 76-110 | 35 | `function buildVolumeLine(menu, line, label, ctx) {` |
+| `syncIco` | 85-90 | 6 | `const syncIco = () => {` |
+| `applyVideoSoundToBg` | 113-120 | 8 | `function applyVideoSoundToBg(loadVol, loadMuted) {` |
+| `isEditableTarget` | 125-133 | 9 | `function isEditableTarget(el) {` |
+| `attachTypeKeydown` | 135-146 | 12 | `function attachTypeKeydown(isTypeSoundOff, loadStyle) {` |
+| `onKeydown` | 136-143 | 8 | `const onKeydown = (e) => {` |
+| `buildTypeToggle` | 150-169 | 20 | `function buildTypeToggle(menu, onChange) {` |
+| `setBox` | 159-159 | 1 | `const setBox = (on) => tbox.classList.toggle("on", on);` |
+| `loadTypeStyle` | 171-193 | 23 | `function loadTypeStyle() { const s = localStorage.getItem("mediascape-dsh-type-style"); return s === "crisp" \|\| s === "soft" ? s : "soft"; }` |
+| `buildStylePicker` | 172-193 | 22 | `function buildStylePicker(menu) {` |
+| `startSoundPanel` | 195-263 | 69 | `function startSoundPanel(dock) {` |
+| `loadVol` | 198-199 | 2 | `function loadVol() { return Math.min(100, Math.max(0, parseInt(localStorage.getItem(LS_VOL) \|\| String(VOL_RANGE.default), 10) \|\| VOL_RANGE.default)); }` |
+| `loadMuted` | 199-200 | 2 | `function loadMuted() { return localStorage.getItem(LS_MUTED) !== "0"; }` |
+| `saveVol` | 200-201 | 2 | `function saveVol(v) { try { localStorage.setItem(LS_VOL, String(v)); } catch (e) { /* localStorage 异常（配额/隐私模式）可忽略 */ } }` |
+| `saveMuted` | 201-202 | 2 | `function saveMuted(m) { try { localStorage.setItem(LS_MUTED, m ? "1" : "0"); } catch (e) { /* localStorage 异常（配额/隐私模式）可忽略 */ } }` |
+| `updateBtnState` | 215-220 | 6 | `const updateBtnState = () => {` |
+| `onDocClick` | 245-249 | 5 | `const onDocClick = (e) => {` |
+
+### lib/client-parts/toolbar/dock.js（146 行 · 12 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `loadDockPos` | 4-17 | 14 | `function loadDockPos(dock, lsKey) {` |
+| `saveDockPos` | 18-23 | 6 | `function saveDockPos(dock, lsKey) {` |
+| `attachDockDrag` | 26-97 | 72 | `function attachDockDrag(dock, onReposition) {` |
+| `clamp` | 31-37 | 7 | `function clamp(x, y) {` |
+| `onDown` | 38-44 | 7 | `const onDown = (e) => {` |
+| `onMove` | 45-60 | 16 | `const onMove = (e) => {` |
+| `onUp` | 61-71 | 11 | `const onUp = (e) => {` |
+| `onClickCapture` | 72-74 | 3 | `const onClickCapture = (e) => {` |
+| `onResize` | 75-82 | 8 | `const onResize = () => {` |
+| `startDock` | 99-144 | 46 | `function startDock() {` |
+| `repositionPopup` | 108-131 | 24 | `function repositionPopup(el) {` |
+| `repositionPopups` | 132-133 | 2 | `function repositionPopups() { for (const el of popups) repositionPopup(el); }` |
+
+### lib/client.js（3808 行 · 187 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `migrateLegacyKeys` | 59-68 | 10 | `function migrateLegacyKeys() {` |
+| `withMediaToken` | 79-86 | 8 | `function withMediaToken(url) {` |
+| `ffFetch` | 98-112 | 15 | `async function ffFetch(url, opts = {}, timeoutMs = FF_FETCH_TIMEOUT_MS) {` |
+| `fmtBytes` | 115-116 | 2 | `function fmtBytes(n) { return n >= BYTES_PER_MB ? (n / BYTES_PER_MB).toFixed(1) + " MB" : (n / BYTES_PER_KB).toFixed(0) + " KB"; }` |
+| `fmtSpeed` | 116-117 | 2 | `function fmtSpeed(bps) { return bps >= BYTES_PER_MB ? (bps / BYTES_PER_MB).toFixed(1) + " MB/s" : (bps / BYTES_PER_KB).toFixed(0) + " KB/s"; }` |
+| `createRowOps` | 118-166 | 49 | `function createRowOps(rows, refresh) {` |
+| `ffIdbOpen` | 174-187 | 14 | `function ffIdbOpen() {` |
+| `ffIdbGetAll` | 188-194 | 7 | `function ffIdbGetAll(store) {` |
+| `ffIdbPut` | 195-202 | 8 | `function ffIdbPut(store, record) {` |
+| `ffIdbDelete` | 203-210 | 8 | `function ffIdbDelete(store, key) {` |
+| `PickerGuard` | 225-237 | 13 | `function PickerGuard() {` |
+| `restore` | 229-233 | 5 | `const restore = () => {` |
+| `extractColors` | 364-404 | 41 | `function extractColors(img, count = 5) {` |
+| `loadImage` | 414-421 | 8 | `function loadImage(url) {` |
+| `currentWallpaperColors` | 428-443 | 16 | `async function currentWallpaperColors() {` |
+| `wallpaper` | 433-433 | 1 | `const wallpaper = (id ? items.find((x) => x.id === id) : null)` |
+| `buildUploadRowEl` | 447-476 | 30 | `function buildUploadRowEl() {` |
+| `makeUploadBegin` | 501-523 | 23 | `function makeUploadBegin(ops, root, refresh) {` |
+| `makeUploadSkip` | 526-540 | 15 | `function makeUploadSkip(ops, root, rows, refresh) {` |
+| `makeUploadDispose` | 543-550 | 8 | `function makeUploadDispose(btn, panel, onDocClick) {` |
+| `createUploadToggle` | 552-565 | 14 | `function createUploadToggle(dockEl) {` |
+| `bindRowButtons` | 568-576 | 9 | `function bindRowButtons(r, controls) {` |
+| `startUploadHud` | 578-624 | 47 | `function startUploadHud(dock) {` |
+| `onDocClick` | 589-594 | 6 | `const onDocClick = (e) => {` |
+| `refresh` | 600-610 | 11 | `function refresh() {` |
+| `runUploadXhr` | 637-653 | 17 | `function runUploadXhr(url, body, onProgress) {` |
+| `settleUpload` | 663-671 | 9 | `function settleUpload(uploadResult, userPaused, userCancelled, hud) {` |
+| `uploadOneFileXhr` | 673-722 | 50 | `function uploadOneFileXhr(file, kind) {` |
+| `run` | 700-710 | 11 | `const run = () => {` |
+| `classifyUploadFile` | 732-737 | 6 | `function classifyUploadFile(f) {` |
+| `isItemUsable` | 741-743 | 3 | `function isItemUsable(item) {` |
+| `refreshList` | 746-751 | 6 | `async function refreshList(kind) {` |
+| `groupUploadByKind` | 756-764 | 9 | `function groupUploadByKind(files, hud) {` |
+| `dedupeByFileSize` | 768-780 | 13 | `function dedupeByFileSize(files, kind, hud) {` |
+| `uploadFiles` | 782-805 | 24 | `async function uploadFiles(files) {` |
+| `removeItems` | 809-825 | 17 | `async function removeItems(items) {` |
+| `deleteServerFile` | 827-837 | 11 | `function deleteServerFile(item) {` |
+| `registerColorCSS` | 857-864 | 8 | `function registerColorCSS() {` |
+| `capsuleCSS` | 875-909 | 35 | `function capsuleCSS() {` |
+| `visit` | 881-887 | 7 | `function visit(r) {` |
+| `identityCSS` | 1307-1310 | 4 | `function identityCSS() {` |
+| `resolveAutoBootVideo` | 1335-1354 | 20 | `async function resolveAutoBootVideo(listData) {` |
+| `pick` | 1351-1351 | 1 | `const pick = (saved && vids.find((w) => w.id === saved)) \|\| vids[0];` |
+| `loadBootGifConfig` | 1355-1412 | 58 | `async function loadBootGifConfig() {` |
+| `buildBootOverlay` | 1419-1451 | 33 | `function buildBootOverlay() {` |
+| `finishBootIntro` | 1457-1490 | 34 | `function finishBootIntro(ov, st) {` |
+| `bootRotateTo` | 1494-1518 | 25 | `function bootRotateTo(ov, urls, index, st) {` |
+| `bootStartRotate` | 1521-1542 | 22 | `function bootStartRotate(ov, urls, st) {` |
+| `segMs` | 1526-1529 | 4 | `const segMs = (i) => {` |
+| `step` | 1530-1540 | 11 | `const step = () => {` |
+| `playTransformIntro` | 1544-1595 | 52 | `function playTransformIntro() {` |
+| `waitBootMediaReady` | 1598-1634 | 37 | `function waitBootMediaReady(el, timeoutMs) {` |
+| `isReadyNow` | 1603-1606 | 4 | `function isReadyNow() {` |
+| `cleanup` | 1607-1620 | 14 | `function cleanup(clear, ok) {` |
+| `onOk` | 1621-1622 | 2 | `function onOk() { cleanup(true, true); }` |
+| `onErr` | 1622-1623 | 2 | `function onErr() { cleanup(true, false); }` |
+| `showBootOverlay` | 1641-1725 | 85 | `function showBootOverlay(mediaEl, urls) {` |
+| `finish` | 1653-1670 | 18 | `const finish = () => {` |
+| `rotateTo` | 1675-1699 | 25 | `function rotateTo(index, urls2) {` |
+| `segMs` | 1702-1705 | 4 | `function segMs(index) {` |
+| `startRotate` | 1706-1723 | 18 | `function startRotate(urls2) {` |
+| `step` | 1710-1720 | 11 | `const step = () => {` |
+| `startWallpaper` | 1727-2461 | 735 | `function startWallpaper(dock) {` |
+| `loadIdSet` | 1734-1737 | 4 | `function loadIdSet(key) {` |
+| `saveIdSet` | 1738-1740 | 3 | `function saveIdSet(key, set) {` |
+| `syncModeBtn` | 1816-1821 | 6 | `function syncModeBtn() {` |
+| `updateIntervalLine` | 1828-1830 | 3 | `function updateIntervalLine() {` |
+| `updateVideoToggle` | 1832-1839 | 8 | `function updateVideoToggle() {` |
+| `logSwitch` | 1857-1873 | 17 | `function logSwitch(extra) {` |
+| `disposeVideoEl` | 1881-1884 | 4 | `function disposeVideoEl(el) {` |
+| `renderImageLayer` | 1886-1899 | 14 | `function renderImageLayer() {` |
+| `renderVideoLayer` | 1901-1989 | 89 | `function renderVideoLayer() {` |
+| `unmute` | 1976-1980 | 5 | `const unmute = () => {` |
+| `renderLayers` | 1990-2016 | 27 | `function renderLayers() {` |
+| `showByIndex` | 2035-2041 | 7 | `function showByIndex(kind, idx) {` |
+| `toggleVideo` | 2045-2055 | 11 | `function toggleVideo(on) {` |
+| `activeArr` | 2057-2058 | 2 | `function activeArr() { return videoOn ? vids : imgs; }` |
+| `showItem` | 2059-2067 | 9 | `function showItem(item) {` |
+| `doSwitch` | 2069-2073 | 5 | `function doSwitch() {` |
+| `onVideoEnded` | 2078-2084 | 7 | `function onVideoEnded() {` |
+| `onVideoError` | 2088-2096 | 9 | `function onVideoError() {` |
+| `randomCandidates` | 2098-2105 | 8 | `function randomCandidates() {` |
+| `doRandom` | 2107-2115 | 9 | `function doRandom() {` |
+| `clearRandom` | 2117-2118 | 2 | `function clearRandom() { if (randomTimer) { clearTimeout(randomTimer); randomTimer = null; } }` |
+| `scheduleRandom` | 2119-2128 | 10 | `function scheduleRandom() {` |
+| `setMode` | 2130-2147 | 18 | `function setMode(m) {` |
+| `setIntervalMinutes` | 2149-2154 | 6 | `function setIntervalMinutes(v) {` |
+| `closePanel` | 2156-2157 | 2 | `function closePanel() { panel.classList.remove("open"); }` |
+| `closePicker` | 2159-2160 | 2 | `function closePicker() { picker.classList.remove("open"); }` |
+| `updatePickerActions` | 2161-2166 | 6 | `function updatePickerActions() {` |
+| `buildPicker` | 2168-2214 | 47 | `function buildPicker() {` |
+| `openPicker` | 2217-2223 | 7 | `function openPicker() {` |
+| `collectSelectedWallpapers` | 2227-2234 | 8 | `function collectSelectedWallpapers(ids) {` |
+| `removeSelected` | 2238-2251 | 14 | `async function removeSelected() {` |
+| `loadCustomWallpapers` | 2276-2299 | 24 | `async function loadCustomWallpapers(refresh) {` |
+| `syncBgEnabledUI` | 2358-2367 | 10 | `function syncBgEnabledUI() {` |
+| `setBgEnabled` | 2368-2375 | 8 | `function setBgEnabled(on) {` |
+| `onBgDocClick` | 2387-2393 | 7 | `const onBgDocClick = (e) => {` |
+| `defaultWallpaper` | 2418-2422 | 5 | `function defaultWallpaper() {` |
+| `initWallpaper` | 2424-2447 | 24 | `async function initWallpaper() {` |
+| `createAmbientDots` | 2476-2495 | 20 | `function createAmbientDots(wrap, maxCount) {` |
+| `createAmbienceLine` | 2498-2515 | 18 | `function createAmbienceLine(dock, panel, onCycle) {` |
+| `startAmbience` | 2517-2566 | 50 | `function startAmbience(dock) {` |
+| `setLevel` | 2533-2552 | 20 | `function setLevel(key, instant) {` |
+| `createFontToggle` | 2578-2586 | 9 | `function createFontToggle(dock) {` |
+| `createFontCycle` | 2589-2631 | 43 | `function createFontCycle(btn, applyScale) {` |
+| `setLevel` | 2599-2607 | 9 | `function setLevel(key) {` |
+| `restore` | 2615-2618 | 4 | `function restore(key) {` |
+| `startFont` | 2633-2651 | 19 | `function startFont(dock) {` |
+| `applyScale` | 2636-2649 | 14 | `function applyScale(scale) {` |
+| `ensureTypeAudio` | 2676-2682 | 7 | `function ensureTypeAudio() {` |
+| `typeNoiseBuffer` | 2683-2691 | 9 | `function typeNoiseBuffer(ctx) {` |
+| `playTypeClick` | 2692-2724 | 33 | `function playTypeClick(key, style) {` |
+| `pick` | 2697-2697 | 1 | `const pick = (v) => (soft ? v.soft : v.crisp);` |
+| `buildVolumeLine` | 2727-2761 | 35 | `function buildVolumeLine(menu, line, label, ctx) {` |
+| `syncIco` | 2736-2741 | 6 | `const syncIco = () => {` |
+| `applyVideoSoundToBg` | 2764-2771 | 8 | `function applyVideoSoundToBg(loadVol, loadMuted) {` |
+| `isEditableTarget` | 2776-2784 | 9 | `function isEditableTarget(el) {` |
+| `attachTypeKeydown` | 2786-2797 | 12 | `function attachTypeKeydown(isTypeSoundOff, loadStyle) {` |
+| `onKeydown` | 2787-2794 | 8 | `const onKeydown = (e) => {` |
+| `buildTypeToggle` | 2801-2820 | 20 | `function buildTypeToggle(menu, onChange) {` |
+| `setBox` | 2810-2810 | 1 | `const setBox = (on) => tbox.classList.toggle("on", on);` |
+| `loadTypeStyle` | 2822-2844 | 23 | `function loadTypeStyle() { const s = localStorage.getItem("mediascape-dsh-type-style"); return s === "crisp" \|\| s === "soft" ? s : "soft"; }` |
+| `buildStylePicker` | 2823-2844 | 22 | `function buildStylePicker(menu) {` |
+| `startSoundPanel` | 2846-2914 | 69 | `function startSoundPanel(dock) {` |
+| `loadVol` | 2849-2850 | 2 | `function loadVol() { return Math.min(100, Math.max(0, parseInt(localStorage.getItem(LS_VOL) \|\| String(VOL_RANGE.default), 10) \|\| VOL_RANGE.default)); }` |
+| `loadMuted` | 2850-2851 | 2 | `function loadMuted() { return localStorage.getItem(LS_MUTED) !== "0"; }` |
+| `saveVol` | 2851-2852 | 2 | `function saveVol(v) { try { localStorage.setItem(LS_VOL, String(v)); } catch (e) { /* localStorage 异常（配额/隐私模式）可忽略 */ } }` |
+| `saveMuted` | 2852-2853 | 2 | `function saveMuted(m) { try { localStorage.setItem(LS_MUTED, m ? "1" : "0"); } catch (e) { /* localStorage 异常（配额/隐私模式）可忽略 */ } }` |
+| `updateBtnState` | 2866-2871 | 6 | `const updateBtnState = () => {` |
+| `onDocClick` | 2896-2900 | 5 | `const onDocClick = (e) => {` |
+| `startMusic` | 2920-3507 | 588 | `async function startMusic(dock) {` |
+| `loadIdSet` | 2922-2925 | 4 | `function loadIdSet(key) {` |
+| `saveIdSet` | 2926-2928 | 3 | `function saveIdSet(key, set) {` |
+| `fillList` | 2938-2959 | 22 | `async function fillList() {` |
+| `parseSyncsafeSize` | 2984-2985 | 2 | `function parseSyncsafeSize(v, i) { return ((v[i] & 127) << 21) \| ((v[i + 1] & 127) << 14) \| ((v[i + 2] & 127) << 7) \| (v[i + 3] & 127); }` |
+| `readFourCC` | 2985-2986 | 2 | `function readFourCC(v, i) { return String.fromCharCode(v[i], v[i + 1], v[i + 2], v[i + 3]); }` |
+| `str` | 2986-2998 | 13 | `function str(v, s, e) { let r = ""; for (let i = s; i < e && i < v.length; i++) r += String.fromCharCode(v[i]); return r; }` |
+| `flacPicture` | 2987-2998 | 12 | `function flacPicture(b) {` |
+| `u32` | 2988-2988 | 1 | `const u32 = (i) => ((b[i] << 24) >>> 0) \| ((b[i + 1] << 16)) \| ((b[i + 2] << 8)) \| b[i + 3];` |
+| `extractCover` | 2999-3051 | 53 | `function extractCover(buf) {` |
+| `dataUriToBuffer` | 3052-3068 | 17 | `function dataUriToBuffer(uri) {` |
+| `resolveCover` | 3069-3097 | 29 | `async function resolveCover(item) {` |
+| `fmt` | 3162-3167 | 6 | `function fmt(t) {` |
+| `setCoverImage` | 3168-3174 | 7 | `function setCoverImage(url) { coverEl.style.backgroundImage = 'url("' + url + '")'; lblEl.style.display = "none"; }` |
+| `setCoverFallback` | 3169-3174 | 6 | `function setCoverFallback(item) {` |
+| `updateDisc` | 3175-3187 | 13 | `function updateDisc(item) {` |
+| `refresh` | 3188-3197 | 10 | `function refresh() {` |
+| `loadAndPlay` | 3199-3211 | 13 | `function loadAndPlay(i) {` |
+| `expandCard` | 3213-3216 | 4 | `function expandCard() {` |
+| `collapseMini` | 3217-3220 | 4 | `function collapseMini() {` |
+| `openPicker` | 3221-3227 | 7 | `function openPicker() {` |
+| `closePicker` | 3228-3229 | 2 | `function closePicker() { picker.classList.remove("open"); }` |
+| `toggle` | 3230-3247 | 18 | `function toggle() {` |
+| `shuffleCandidates` | 3249-3252 | 4 | `function shuffleCandidates() {` |
+| `next` | 3253-3267 | 15 | `function next() {` |
+| `prev` | 3268-3269 | 2 | `function prev() { if (list.length === 0) return; loadAndPlay(current > 0 ? current - 1 : list.length - 1); }` |
+| `cycleMode` | 3270-3275 | 6 | `function cycleMode() {` |
+| `setMode` | 3276-3282 | 7 | `function setMode(modeValue) {` |
+| `updatePickerActions` | 3284-3288 | 5 | `function updatePickerActions() {` |
+| `buildPicker` | 3289-3322 | 34 | `function buildPicker() {` |
+| `removeSelectedSongs` | 3323-3356 | 34 | `async function removeSelectedSongs() {` |
+| `setCover` | 3362-3410 | 49 | `function setCover() {` |
+| `onDocClick` | 3471-3476 | 6 | `const onDocClick = (e) => {` |
+| `loadDockPos` | 3512-3525 | 14 | `function loadDockPos(dock, lsKey) {` |
+| `saveDockPos` | 3526-3531 | 6 | `function saveDockPos(dock, lsKey) {` |
+| `attachDockDrag` | 3534-3605 | 72 | `function attachDockDrag(dock, onReposition) {` |
+| `clamp` | 3539-3545 | 7 | `function clamp(x, y) {` |
+| `onDown` | 3546-3552 | 7 | `const onDown = (e) => {` |
+| `onMove` | 3553-3568 | 16 | `const onMove = (e) => {` |
+| `onUp` | 3569-3579 | 11 | `const onUp = (e) => {` |
+| `onClickCapture` | 3580-3582 | 3 | `const onClickCapture = (e) => {` |
+| `onResize` | 3583-3590 | 8 | `const onResize = () => {` |
+| `startDock` | 3607-3652 | 46 | `function startDock() {` |
+| `repositionPopup` | 3616-3639 | 24 | `function repositionPopup(el) {` |
+| `repositionPopups` | 3640-3641 | 2 | `function repositionPopups() { for (const el of popups) repositionPopup(el); }` |
+| `injectIdentityStyle` | 3660-3667 | 8 | `function injectIdentityStyle() {` |
+| `cleanupStaleDom` | 3674-3688 | 15 | `function cleanupStaleDom() {` |
+| `stopMedia` | 3675-3680 | 6 | `const stopMedia = (root) => {` |
+| `registerTheme` | 3691-3702 | 12 | `function registerTheme(ctx) {` |
+| `reorderDockButtons` | 3706-3711 | 6 | `function reorderDockButtons(dock) {` |
+| `btnByText` | 3708-3708 | 1 | `const btnByText = (t) => allBtns.find((b) => b.textContent === t);` |
+| `lockDarkMode` | 3714-3723 | 10 | `function lockDarkMode() {` |
+| `enforce` | 3715-3718 | 4 | `const enforce = () => {` |
+| `setupEscClose` | 3726-3735 | 10 | `function setupEscClose(dock) {` |
+| `onEsc` | 3727-3732 | 6 | `const onEsc = (e) => {` |
+| `apply` | 3737-3800 | 64 | `function apply(ctx) {` |
+
+### lib/config.js（71 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `uploadLimitBytes` | 59-70 | 12 | `export function uploadLimitBytes(dir) {` |
+
+### lib/debug.js（141 行 · 8 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `debugConfigPath` | 30-32 | 3 | `export function debugConfigPath() {` |
+| `parseDebugConfig` | 45-59 | 15 | `function parseDebugConfig(cfg) {` |
+| `readDebugConfig` | 61-72 | 12 | `export function readDebugConfig(force = false) {` |
+| `logEnabled` | 81-86 | 6 | `export function logEnabled(category) {` |
+| `isDebug` | 92-94 | 3 | `export function isDebug(key) {` |
+| `logTs` | 101-105 | 5 | `export function logTs(d = new Date()) {` |
+| `rotate` | 107-115 | 9 | `function rotate(file) {` |
+| `writeLog` | 123-139 | 17 | `export function writeLog(name, entry) {` |
+
+### lib/handlers-log.js（197 行 · 10 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `wallpaperLogPath` | 16-17 | 2 | `function wallpaperLogPath() { return join(logsDir(), WALLPAPER_LOG_FILE); }` |
+| `appendWallpaperLog` | 19-21 | 3 | `export function appendWallpaperLog(entry) {` |
+| `readFileTail` | 37-57 | 21 | `function readFileTail(file, maxLines) {` |
+| `readWallpaperLog` | 60-70 | 11 | `export function readWallpaperLog(lines = DEFAULT_LOG_LINES) {` |
+| `nextAvailableName` | 73-77 | 5 | `export function nextAvailableName(dir, base, ext) {` |
+| `uploadErrorResponse` | 80-90 | 11 | `export function uploadErrorResponse(res, payload, traceId, e, tag) {` |
+| `finalizeUpload` | 102-127 | 26 | `export async function finalizeUpload(dir, payload, safeName, size, opts = {}) {` |
+| `handleUploadPartDelete` | 134-157 | 24 | `export function handleUploadPartDelete(req, res) {` |
+| `handleWallpaperLog` | 160-189 | 30 | `export function handleWallpaperLog(req, res) {` |
+| `handleWallpaperLogRead` | 192-197 | 6 | `export function handleWallpaperLogRead(req, res, url) {` |
+
+### lib/handlers-upload.js（320 行 · 9 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `memBufferLimit` | 23-25 | 3 | `function memBufferLimit() {` |
+| `receiveBody` | 27-115 | 89 | `function receiveBody(req, { tmpPath, partPath, limit, offset = 0 }) {` |
+| `flushBufferToPart` | 42-46 | 5 | `const flushBufferToPart = () => {` |
+| `onInterrupt` | 100-111 | 12 | `const onInterrupt = (label, err) => {` |
+| `cleanupOrphanParts` | 118-129 | 12 | `function cleanupOrphanParts(dir, maxAgeMs = 24 * 3600 * 1000) {` |
+| `handleFileUpload` | 139-247 | 109 | `function handleFileUpload(req, res, { kind }) {` |
+| `handleUpload` | 250-252 | 3 | `export function handleUpload(req, res) {` |
+| `handleMusicUpload` | 255-257 | 3 | `export function handleMusicUpload(req, res) {` |
+| `handleCoverUpload` | 264-320 | 57 | `export function handleCoverUpload(req, res) {` |
+
+### lib/handlers.js（278 行 · 8 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `handleConfig` | 35-41 | 7 | `export function handleConfig(res) {` |
+| `deleteWallpaperFile` | 46-62 | 17 | `function deleteWallpaperFile(file, dir) {` |
+| `handleDelete` | 64-81 | 18 | `export function handleDelete(req, res, rel) {` |
+| `scanWallpaperDir` | 86-108 | 23 | `function scanWallpaperDir(dir, labels) {` |
+| `mergeOnlineWallpapers` | 111-134 | 24 | `function mergeOnlineWallpapers(items, labels) {` |
+| `handleList` | 136-152 | 17 | `export function handleList(res) {` |
+| `handleMusicList` | 158-222 | 65 | `export function handleMusicList(res) {` |
+| `handleMusicDelete` | 236-274 | 39 | `export function handleMusicDelete(req, res, rel) {` |
+
+### lib/index.js（292 行 · 8 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `logApiRequest` | 33-48 | 16 | `function logApiRequest(req, res, rel) {` |
+| `parseRange` | 56-69 | 14 | `function parseRange(range, total) {` |
+| `pipeFile` | 77-82 | 6 | `function pipeFile(res, file, range) {` |
+| `serveStream` | 83-128 | 46 | `function serveStream(res, req, file, mime) {` |
+| `routeAssetsHandler` | 132-212 | 81 | `function routeAssetsHandler(req, res, url, rel, top) {` |
+| `registerAssets` | 214-247 | 34 | `export function registerAssets(ctx) {` |
+| `ensureDebugServer` | 261-280 | 20 | `function ensureDebugServer() {` |
+| `apply` | 283-291 | 9 | `export function apply(ctx) {` |
+
+### lib/labels.js（48 行 · 8 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `readMap` | 16-22 | 7 | `function readMap(p) {` |
+| `writeMap` | 24-31 | 8 | `function writeMap(p, map) {` |
+| `loadWallpaperLabels` | 34-35 | 2 | `export function loadWallpaperLabels() { return readMap(wallpaperLabelsPath()); }` |
+| `saveWallpaperLabels` | 37-38 | 2 | `export function saveWallpaperLabels(map) { writeMap(wallpaperLabelsPath(), map); }` |
+| `loadMusicLabels` | 40-41 | 2 | `export function loadMusicLabels() { return readMap(musicLabelsPath()); }` |
+| `saveMusicLabels` | 43-44 | 2 | `export function saveMusicLabels(map) { writeMap(musicLabelsPath(), map); }` |
+| `loadLabels` | 46-47 | 2 | `export function loadLabels() { return loadWallpaperLabels(); }` |
+| `saveLabels` | 47-48 | 2 | `export function saveLabels(map) { return saveWallpaperLabels(map); }` |
+
+### lib/online.js（223 行 · 13 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `loadOnlineSources` | 31-46 | 16 | `function loadOnlineSources() {` |
+| `downloadOne` | 55-83 | 29 | `function downloadOne(src) {` |
+| `prehash` | 88-101 | 14 | `function prehash(ctx) {` |
+| `retry` | 104-107 | 4 | `function retry(msg, triesLeft, ctx) {` |
+| `handleUnresumable` | 110-114 | 5 | `function handleUnresumable(res, tries, ctx) {` |
+| `handleOverLimit` | 117-122 | 6 | `function handleOverLimit(size, req, ws, ctx) {` |
+| `finalizeDownload` | 125-143 | 19 | `function finalizeDownload(hashAcc, ws, ctx) {` |
+| `handleResponse` | 146-180 | 35 | `function handleResponse(res, offset, hashAcc, tries, ctx) {` |
+| `failTo` | 160-164 | 5 | `const failTo = (msg, t) => {` |
+| `attempt` | 183-191 | 9 | `function attempt(offset, hashAcc, tries, ctx) {` |
+| `downloadAllOnline` | 194-212 | 19 | `async function downloadAllOnline() {` |
+| `worker` | 200-208 | 9 | `const worker = async () => {` |
+| `ensureOnlineDownload` | 217-222 | 6 | `export function ensureOnlineDownload() {` |
+
+### lib/paths.js（54 行 · 10 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `baseDir` | 8-10 | 3 | `function baseDir() {` |
+| `themeDir` | 13-14 | 2 | `export function themeDir() { return join(baseDir(), 'theme-mediascape'); }` |
+| `bootDir` | 16-17 | 2 | `export function bootDir() { return join(themeDir(), 'boot'); }` |
+| `logsDir` | 19-20 | 2 | `export function logsDir() { return join(themeDir(), 'logs'); }` |
+| `wallpaperDir` | 22-23 | 2 | `export function wallpaperDir() { return join(themeDir(), 'wallpaper'); }` |
+| `musicDir` | 25-26 | 2 | `export function musicDir() { return join(themeDir(), 'music'); }` |
+| `onlineDir` | 30-31 | 2 | `export function onlineDir() { return join(wallpaperDir(), ONLINE_DIR_NAME); }` |
+| `wallpaperLabelsPath` | 38-39 | 2 | `export function wallpaperLabelsPath() { return join(wallpaperDir(), WALLPAPER_LABELS_FILE); }` |
+| `musicLabelsPath` | 46-47 | 2 | `export function musicLabelsPath() { return join(musicDir(), MUSIC_LABELS_FILE); }` |
+| `runtimeCapsulesPath` | 53-54 | 2 | `export function runtimeCapsulesPath() { return join(themeDir(), 'capsules.json'); }` |
+
+### test/e2e/assert-file-usable-check.mjs（120 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `isItemUsable` | 48-48 | 1 | `const isItemUsable = (item) => !!(item && (item.file \|\| item.name) && typeof item.size === 'number' && item.size >= 0);` |
+
+### test/e2e/auto-final.mjs（33 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `snap` | 10-22 | 13 | `const snap = async (label) => {` |
+
+### test/e2e/auto-run.mjs（34 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `snap` | 10-23 | 14 | `const snap = async (label) => {` |
+
+### test/e2e/auto-run2.mjs（35 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `snap` | 10-24 | 15 | `const snap = async (label) => {` |
+
+### test/e2e/boot-durations-check.mjs（27 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `snap` | 8-15 | 8 | `const snap = async (label) => {` |
+
+### test/e2e/boot-e2e-check.mjs（34 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `snap` | 8-21 | 14 | `const snap = async (label) => {` |
+
+### test/e2e/boot-noblack-check.mjs（25 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `snap` | 8-15 | 8 | `const snap = async (label) => {` |
+
+### test/e2e/boot-rotate-sim.mjs（38 行 · 2 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `simulate` | 2-23 | 22 | `function simulate(urls, durationMs, loop, stepCount) {` |
+| `step` | 7-16 | 10 | `const step = () => {` |
+
+### test/e2e/capsules-cache-fallback-check.mjs（117 行 · 2 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `check` | 29-32 | 4 | `const check = (name, ok, detail) => {` |
+| `extractCapsules` | 34-38 | 5 | `const extractCapsules = (js) => {` |
+
+### test/e2e/music-upload-cover-check.mjs（119 行 · 1 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `musicJson` | 51-54 | 4 | `const musicJson = () => {` |
+
+### test/e2e/ui-dock-panels-screenshot.mjs（84 行 · 2 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `wait` | 36-36 | 1 | `const wait = (ms) => new Promise((r) => setTimeout(r, ms));` |
+| `snap` | 46-50 | 5 | `const snap = async (name) => {` |
+
+### test/e2e/ui-dock-upload-remove-check.mjs（165 行 · 3 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `apiList` | 39-42 | 4 | `const apiList = async (p) => {` |
+| `wait` | 43-43 | 1 | `const wait = (ms) => new Promise((r) => setTimeout(r, ms));` |
+| `shot` | 45-50 | 6 | `const shot = async (page, name) => {` |
+
+### test/e2e/upload-api-check.mjs（134 行 · 3 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `ensurePreview` | 30-59 | 30 | `const ensurePreview = () => {` |
+| `api` | 61-75 | 15 | `const api = async (method, path, body, ct) => {` |
+| `musicDir` | 78-81 | 4 | `const musicDir = () => {` |
+
+### test/e2e/upload-resume-check.mjs（126 行 · 5 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `check` | 20-23 | 4 | `const check = (name, ok, detail) => {` |
+| `makeReq` | 30-35 | 6 | `function makeReq(reqUrl) {` |
+| `makeRes` | 36-43 | 8 | `function makeRes() {` |
+| `waitDone` | 44-47 | 4 | `async function waitDone(fakeResp, timeout = 2000) {` |
+| `pump` | 48-54 | 7 | `async function pump(req, buf, chunkSize = 128 * 1024) {` |
+
+### test/e2e/upload-speed-check.mjs（89 行 · 6 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `check` | 27-30 | 4 | `const check = (name, ok, detail) => {` |
+| `makeReq` | 35-36 | 2 | `function makeReq(url) { const r = new Readable({ read() {} }); r.url = url; r.headers = {}; return r; }` |
+| `makeRes` | 36-40 | 5 | `function makeRes() { return { status: 0, body: '', done: false, writeHead(s) { this.status = s; }, end(d) { this.body = String(d \|\| ''); this.done = true; } }; }` |
+| `waitDone` | 37-40 | 4 | `async function waitDone(fakeResp, timeout = 60000) {` |
+| `pump` | 41-47 | 7 | `async function pump(req, buf, chunk = 256 * 1024) {` |
+| `forceLog` | 50-56 | 7 | `function forceLog(line) {` |
+
+### test/e2e/upload-stream-write-check.mjs（157 行 · 4 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `check` | 20-23 | 4 | `const check = (name, ok, detail) => {` |
+| `makeReqRes` | 29-40 | 12 | `function makeReqRes() {` |
+| `waitDone` | 42-47 | 6 | `async function waitDone(fakeResp, timeout = 2000) {` |
+| `pump` | 49-56 | 8 | `async function pump(req, buf, chunkSize = 64 * 1024, onChunk) {` |
+
+### test/e2e/video-cache-compare.mjs（156 行 · 4 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `check` | 21-24 | 4 | `const check = (name, ok, detail) => {` |
+| `serveOld` | 27-44 | 18 | `function serveOld(res, req, file) {` |
+| `serveNew` | 47-78 | 32 | `function serveNew(res, req, file) {` |
+| `httpGet` | 81-92 | 12 | `function httpGet(port, path, headers) {` |
+
+### test/run-all.mjs（126 行 · 3 个函数）
+
+| 函数 | 行号 | 行数 | 签名 |
+|------|------|------|------|
+| `testLogPath` | 23-26 | 4 | `function testLogPath() {` |
+| `testLogTs` | 27-31 | 5 | `function testLogTs(d = new Date()) {` |
+| `testLogWrite` | 32-38 | 7 | `function testLogWrite(entry) {` |
+
+<!-- dshgp-functions:end -->
+
+<!-- dshgp-version:start -->
+## 版本列表
+
+| 版本 | 内容 |
+|------|------|
+| 1.0.2 | 1.0.2 mht 快照还原预览——①theme-studio/preview.html 集成 DSH 界面 .mht 直接解析还原（聊天框+侧边栏+壁纸背景+dock 静态还原，URL 相对化走真实壁纸，剔除 eruda/cid 引用）②假数据：操作日志内容→聊天框模拟用户消息、任务列表「预览页加载」页面加载完自动变 1/1 完成、工作区树一个文件夹（测试工作区）+一个会话（测试会话）③侧边栏收起按 DSH 真实行为模拟（收起替换为 rail 形态 DOM 会话列表整个移除、56px 窄栏、品牌 logo railMark、aria 原文）④操作日志与顶部预览态提示默认隐藏+右下角「日志」开关调出⑤修正：collapsed 快照 DOM 补闭合防聊天框被吞、工作区树 slot 误填文字清空、URL 相对化保留根路径；版本同步 1.0.2（package.json/online.js UA/CHANGELOG/README）；mht 源文件与中间产物清理入 .trash 可恢复 |
+| 1.0.1 | 1.0.1 审计优化——①大文件拆分：handlers.js→handlers/upload/log 三模块（763→259+319+191）、utils.js→utils/utils-upload（558→196+363）、build.cjs→胶囊数据独立文件（533→326）②函数拆分 15+：apply×6/startUploadHud×5/uploadFiles×2/uploadOneFileXhr/ambience×2/handleDelete/handleList/readDebugConfig/startFont×2/removeSelected/attachTypeKeydown ③图片主色提取 API：__mediascapeDshExtractColors + __mediascapeDshCurrentWallpaperColors ④模糊变量语义化 26 处 + 外部请求补超时 6 处 + 反代 token 豁免 + test/ .samples ⑤质量评分 78.9→80.9/B（0 拦截）；行为零变化，全量回归+构建+渲染通过；版本记录 CHANGELOG.md |
+| 1.0.0 | 1.0.0 首发——桌面媒体氛围主题：dock 工具条（字/景/声/乐/传）、图片视频壁纸（mp4/webm、在线资源断点续传、上传中途不落盘+暂停落盘.part+offset 续传+去重预检+真实删除）、音乐播放器、配色盘（单真源动态元素行+jscolor+预设切换）、开屏动画、HTTP API、playwright 积木化录像测试；版本记录 CHANGELOG.md |
+
+<!-- dshgp-version:end -->
