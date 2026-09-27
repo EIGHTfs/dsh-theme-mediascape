@@ -76,14 +76,32 @@ function compCurrentHex(c) {
   if (ROLECOLOR[c.role]) return ROLECOLOR[c.role];
   return /^#?[0-9a-fA-F]{6}$/.test(String(c.hex || "")) ? ("#" + c.hex.replace(/^#/, "")).toUpperCase() : "#888888";
 }
-// samples 分片缓存 { key: html }（theme-studio/samples/<key>.html 可复用单片，2026-09-22 起左列第 5 列嵌入）
+// samples 分片缓存 { key: html }（theme-studio/samples/<key>.html 手写单片优先，2026-09-22 起左列第 5 列嵌入）
 const SAMPLE_CACHE = {};
+// ── 2026-09-2x 分片模板兜底（自动化）：缺手写分片的键按 kindFor 自动生成示意骨架 ──
+// 统一骨架：--sw = 应用色（配色盘嵌入 iframe 时注入当前 hex），键名作标注；手写 samples/<key>.html 存在则优先。
+const TPL_STYLE = "padding:10px;background:rgba(10,12,18,.4);border-radius:10px;font-size:12px;line-height:1.6;color:inherit";
+const SAMPLE_TPL = {
+  solid: (k) => `<div style="${TPL_STYLE}">按钮示意（--sw 应用色）<br><span style="display:inline-flex;gap:8px;margin-top:6px"><b style="padding:6px 16px;border-radius:999px;background:var(--sw,#7CC8E8);color:#10222e;font-weight:600">${k}</b><b style="padding:6px 16px;border-radius:999px;background:var(--sw,#7CC8E8);color:#10222e;font-weight:600;opacity:.7">Hover</b></span></div>`,
+  panel: (k) => `<div style="${TPL_STYLE}">面板示意（--sw 应用色）<br><div style="margin-top:6px;border:1px solid rgba(212,175,55,.25);border-radius:10px;background:var(--sw,#362A56);padding:8px 12px"><b>${k}</b><div style="margin-top:4px;opacity:.6">内容占位 · 实时色</div></div></div>`,
+  sidebar: (k) => `<div style="${TPL_STYLE}">边栏示意（--sw 应用色）<br><span style="display:inline-flex;gap:6px;margin-top:6px;width:100%"><span style="flex:1;height:34px;border-radius:8px;background:var(--sw,#362A56);border:1px solid rgba(212,175,55,.25)"></span><span style="flex:1;height:34px;border-radius:8px;background:var(--sw,#362A56);border:1px solid rgba(212,175,55,.25);opacity:.75"></span></span></div>`,
+  dock: (k) => `<div style="${TPL_STYLE}">悬浮 dock 示意（--sw 应用色）<br><span style="display:inline-flex;gap:6px;margin-top:6px"><i style="width:26px;height:26px;border-radius:8px;background:var(--sw,#362A56);border:1px solid rgba(212,175,55,.3)"></i><i style="width:26px;height:26px;border-radius:8px;background:var(--sw,#362A56);border:1px solid rgba(212,175,55,.3);opacity:.8"></i><i style="width:26px;height:26px;border-radius:8px;background:var(--sw,#362A56);border:1px solid rgba(212,175,55,.3);opacity:.6"></i></span></div>`,
+  status: (k) => `<div style="${TPL_STYLE}">状态胶囊示意（--sw 应用色）<br><b style="display:inline-block;margin-top:6px;padding:4px 14px;border-radius:999px;background:var(--sw,#362A56);border:1px solid rgba(212,175,55,.4)">${k}</b></div>`,
+  text: (k) => `<div style="${TPL_STYLE}">文字示意（--sw 文字色）<br><div style="margin-top:6px"><b style="color:var(--sw,#EAFFF3)">${k} · 正文文字</b><div style="color:var(--sw,#EAFFF3);opacity:.7;margin-top:2px">次要文字：内容占位</div></div></div>`,
+  chip: (k) => `<div style="${TPL_STYLE}">chip 示意（--sw 应用色）<br><b style="display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;border:1px solid var(--sw,#7CC8E8);color:var(--sw,#7CC8E8)">${k}</b> <b style="display:inline-block;padding:2px 10px;border-radius:999px;background:var(--sw,#7CC8E8);color:#10222e;opacity:.6">active</b></div>`,
+  "panel-top": (k) => `<div style="${TPL_STYLE}">顶部条示意（--sw 应用色）<br><div style="margin-top:6px;border-radius:10px 10px 0 0;background:var(--sw,#362A56);padding:6px 12px;border:1px solid rgba(212,175,55,.25);border-bottom:none"><b>${k}</b></div></div>`,
+};
+const sampleHtmlFor = (key) => {
+  const gen = SAMPLE_TPL[kindFor(key)] || SAMPLE_TPL.panel;
+  return gen(key);
+};
 async function loadSample(key) {
   if (SAMPLE_CACHE[key] !== undefined) return SAMPLE_CACHE[key];
   try {
     const r = await fetch('/samples/' + key + '.html');
-    SAMPLE_CACHE[key] = r.ok ? await r.text() : "";
-  } catch (e) { SAMPLE_CACHE[key] = ""; }
+    // 手写分片 404 → 模板兜底自动生成（新键/未手写键都有分片，不再显示「无分片」）
+    SAMPLE_CACHE[key] = r.ok ? await r.text() : sampleHtmlFor(key);
+  } catch (e) { SAMPLE_CACHE[key] = sampleHtmlFor(key); }
   return SAMPLE_CACHE[key];
 }
 // ── 2026-09-2x 元素行动态生成（定稿）：行来源 = theme-colors.json colors 键全量（动态真源）──
@@ -98,13 +116,40 @@ const kindFor = (k) => { const hit = KIND_IF.find(([w]) => k.includes(w)); retur
 const roleRow = (role) => {
   const m = ((THEME && THEME.comps) || []).reduce((mm, c) => (mm[c.role] = c, mm), {});
   const found = m[role];
-  if (found) return found;
+  const col = ((THEME && THEME.colors) || {})[role] || {};
+  if (found) return Object.assign({}, found, { key: role, parent: found.parent || col.parent || null });
   // 2026-09-26 修：colors 键无对应 comps 条目（API 自动注册的元素如 docPreview）时，
   // 兜底对象必须带 hex（从 THEME.colors 取）——否则 c.hex 缺失 → 左格/保存一律 #888888 兜底
-  const col = ((THEME && THEME.colors) || {})[role] || {};
-  return { role, text: role, kind: kindFor(role), colorKey: role, hex: col.hex || "" };
+  return { role, key: role, text: role, kind: kindFor(role), colorKey: role, hex: col.hex || "", parent: col.parent || null };
 };
 const roleRows = () => Object.keys((THEME && THEME.colors) || {}).map((k) => roleRow(k));
+// ── 2026-09-2x 配色区父子层级显示（用户定稿：类似胶囊区先父后子）──
+// colors 键可带 parent（父键名或组名）：父先子后拓扑（同 capsuleCSS），子级缩进+左边框；
+// parent 指向非 colors 键 → 渲染为虚拟组标题行（不可编辑，纯分组）。roleRows 保持纯键供 serialize/collect。
+const colorTreeRows = () => {
+  const rows = roleRows();
+  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const groups = new Map(); // 虚拟组节点：parent 指向非键名
+  for (const r of rows) {
+    const p = r.parent;
+    if (p && !byKey.has(p) && !groups.has(p)) groups.set(p, { key: p, virtual: true, text: p });
+  }
+  const all = [...groups.values(), ...rows];
+  const parentOf = (n) => (n.virtual ? null : n.parent || null);
+  const childrenOf = (name) => all.filter((n) => parentOf(n) === name);
+  const order = [];
+  const visited = new Set();
+  const visit = (n, depth) => {
+    if (visited.has(n.key)) return;
+    visited.add(n.key);
+    n.depth = depth;
+    order.push(n); // 父先入序 → 子后（先父后子，与胶囊区注入顺序一致）
+    for (const c of childrenOf(n.key)) visit(c, depth + 1);
+  };
+  for (const n of all) if (!parentOf(n) || !all.some((x) => x.key === parentOf(n))) visit(n, 0);
+  for (const n of all) if (!visited.has(n.key)) { n.depth = 0; order.push(n); } // 环/孤儿兜底
+  return order;
+};
 // 单元素应用：POST /api/theme-apply { items:[{key,hex}] }（服务端以真源 css 为底逐键替换）
 // alpha 可选：0~1 时把 hex 转 rgba(r,g,b,a) 写入（左侧第 6 列不透明度滑块，2026-09-22）
 // ═══ 背景层级区块（bg → bgSoft → bgLayer；2026-09-22 json 化新增）═══
@@ -175,7 +220,13 @@ async function renderLeft() {
   await Promise.all(roleRows().map((c) => loadSample(c.role)));
   // 每行 comp-pair = 左格（当前主题元素控件）+ 右格（同元素预设包色），左右按第二列类键（role）完全对齐
   // 左侧 6 列：元素名/类键/色号/色块/真实元素样子/不透明度滑块；右侧 5 列：元素名/类键/调色盘/色块/应用按钮
-  const rows = roleRows().map((c) => {
+  // 2026-09-2x 父子层级（colorTreeRows）：parent 指向非键名 → 虚拟组标题行；键行按 depth 缩进+左边框
+  const rows = colorTreeRows().map((n) => {
+    if (n.virtual) {
+      return `<div class="comp-group" data-group="${n.key}" style="margin:16px 0 4px;font-weight:700;opacity:.9;font-size:12px;letter-spacing:.5px">▸ ${n.text || n.key}</div>`;
+    }
+    const c = n;
+    const depthStyle = c.depth ? ` style="margin-left:${c.depth * 22}px;border-left:2px solid rgba(var(--mediascape-dsh-theme-border,212,175,55),.25);padding-left:10px"` : "";
     const hex = compCurrentHex(c);
     const tc = textColorFor(hex);
     const alpha = ROLEALPHA[c.role] !== undefined
@@ -223,7 +274,7 @@ async function renderLeft() {
         <button class="btn-app" data-role="${c.role}">← 应用</button>
       </div>`;
     }
-    return `<div class="comp-pair" data-role="${c.role}">${leftCell}${rightCell}</div>`;
+    return `<div class="comp-pair" data-role="${c.role}"${depthStyle}>${leftCell}${rightCell}</div>`;
   }).join("");
   list.innerHTML = rows;
   // jscolor 调色盘（2026-09-26 换用 GitHub EastDesire/jscolor 库）：显式 new 逐元素安装——
@@ -509,7 +560,66 @@ function bindRegisterElement() {
     } catch (e) { toast("✗ " + (e.message || e)); }
   });
 }
+// ── 2026-09-2x 自动获取层级（用户需求）：from 宿主预览页 DOM 推断每个配色键所属大区 ──
+// 做法：隐藏 iframe 加载宿主预览页 `/`（同源，含真实布局骨架：左栏 lPcGpa/sidebarCol、右栏 rightbar、
+// 会话区 chat-flow/composer）→ 用稳定锚点（data-* / 文档已知类名尾缀）对每个键探测 DOM 元素 →
+// 沿祖先链判定大区 → POST /api/theme-hierarchy 写回 parent → 刷新颜色区。
+// 锚点映射（hash 前缀类不用，只留 data 锚点 / 文档记录的稳定类名尾缀）：
+const HIER_ANCHOR = {
+  panelBody: "[data-files-body]",
+  docPreview: "[data-document-preview]",
+  textDocument: "[data-textpreview-plain]",
+  "todo-panel": "[data-testid='todo-panel']",
+  "queue-dock": "[data-queue-dock]",
+  "sidebar-brand": "[class$='_brand']",
+  "sidebar-left": "[class*='sidebarCol']",
+  "sidebar-fill": "[class*='rightbar']",
+};
+// 依据祖先链类名判定所属大区（左栏 sidebarCol/lPcGpa、右栏 rightbar、会话区 chat-flow/composer）
+const HIER_ZONE = (clsList) => {
+  const all = clsList.join(" ");
+  if (all.includes("rightbar")) return "右侧边栏";
+  if (all.includes("sidebarCol") || /\blPcGpa\b/.test(all)) return "左侧边栏";
+  if (all.includes("chat-flow") || all.includes("composer")) return "会话区";
+  return null;
+};
+async function autoHierarchy() {
+  if (document.getElementById("hierFrame")) { toast("⏳ 正在采集…"); return; }
+  const iframe = document.createElement("iframe");
+  iframe.id = "hierFrame"; iframe.style.cssText = "display:none";
+  iframe.src = "/";
+  document.body.appendChild(iframe);
+  await new Promise((resolve) => { iframe.onload = resolve; setTimeout(resolve, 20000); });
+  const doc = iframe.contentDocument;
+  await new Promise((res) => { const t0 = Date.now(); const iv = setInterval(() => {
+    if ((doc.querySelector("[class*='sidebarCol']")) || Date.now() - t0 > 15000) { clearInterval(iv); res(); }
+  }, 300); });
+  const items = [];
+  for (const [key, sel] of Object.entries(HIER_ANCHOR)) {
+    let el = null;
+    try { el = doc.querySelector(sel); } catch (e) { el = null; }
+    if (!el) continue;
+    let n = el; const cls = [];
+    while (n && cls.length < 30) { cls.push(String(n.className || "")); n = n.parentElement; }
+    const zone = HIER_ZONE(cls);
+    if (zone) items.push({ key, value: zone });
+  }
+  iframe.remove();
+  if (!items.length) { toast("⚠️ 未探测到可判定大区的元素（宿主预览页渲染了吗？）"); return; }
+  try {
+    const r = await fetch("/api/theme-hierarchy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ colors: items }) });
+    const d = await r.json();
+    if (!d.ok) { toast("✗ " + (d.error || "写回失败")); return; }
+    toast("✅ 自动层级更新 " + d.updated + " 键：" + items.map((i) => i.key + "→" + i.value).join("、"));
+    await loadTheme(); renderLeft();
+  } catch (e) { toast("✗ " + (e.message || e)); }
+}
+function bindAutoHierarchy() {
+  const btn = $("btnAutoHierarchy");
+  if (btn) btn.addEventListener("click", autoHierarchy);
+}
 bindRegisterElement();
+bindAutoHierarchy();
 
 // ═══════════ 第三块：宿主元素配色编辑区（胶囊配方）——独立保留，V2 不动 ═══════════
 let CAPSULES = [];

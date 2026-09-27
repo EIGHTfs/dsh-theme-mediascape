@@ -1354,7 +1354,7 @@ dsh-theme-mediascape（一个 GitHub 仓库，monorepo）
 
 | 版本 | 内容 |
 |------|------|
-| 1.0.2 | 1.0.2 mht 快照还原预览——①theme-studio/preview.html 集成 DSH 界面 .mht 直接解析还原（聊天框+侧边栏+壁纸背景+dock 静态还原，URL 相对化走真实壁纸，剔除 eruda/cid 引用）②假数据：操作日志内容→聊天框模拟用户消息、任务列表「预览页加载」页面加载完自动变 1/1 完成、工作区树一个文件夹（测试工作区）+一个会话（测试会话）③侧边栏收起按 DSH 真实行为模拟（收起替换为 rail 形态 DOM 会话列表整个移除、56px 窄栏、品牌 logo railMark、aria 原文）④操作日志与顶部预览态提示默认隐藏+右下角「日志」开关调出⑤修正：collapsed 快照 DOM 补闭合防聊天框被吞、工作区树 slot 误填文字清空、URL 相对化保留根路径；版本同步 1.0.2（package.json/online.js UA/CHANGELOG/README）；mht 源文件与中间产物清理入 .trash 可恢复 |
+| 1.0.3 | 1.0.3 配色盘大规模升级——①颜色区父子层级显示（colors 键 parent + 虚拟组标题 + 子级缩进，先父后子）②自动获取层级按钮（iframe 加载宿主预览页 DOM + 稳定锚点探测 + 祖先链判大区写回 parent；/api/theme-hierarchy）③右格调色盘换 jscolor（vendor 本地化，点第 4 列色块呼出）④分片模板兜底自动生成（缺分片键按 kind 8 类模板自动出示意，19 键全有分片）⑤元素注册 API 支持 parent + 胶囊注册联动⑥修复 build.cjs 预览重启段漏 DSH_THEME_NO_RESTART（应用/注册 API 内调 build 杀服务自身） |
 | 1.0.1 | 1.0.1 审计优化——①大文件拆分：handlers.js→handlers/upload/log 三模块（763→259+319+191）、utils.js→utils/utils-upload（558→196+363）、build.cjs→胶囊数据独立文件（533→326）②函数拆分 15+：apply×6/startUploadHud×5/uploadFiles×2/uploadOneFileXhr/ambience×2/handleDelete/handleList/readDebugConfig/startFont×2/removeSelected/attachTypeKeydown ③图片主色提取 API：__mediascapeDshExtractColors + __mediascapeDshCurrentWallpaperColors ④模糊变量语义化 26 处 + 外部请求补超时 6 处 + 反代 token 豁免 + test/ .samples ⑤质量评分 78.9→80.9/B（0 拦截）；行为零变化，全量回归+构建+渲染通过；版本记录 CHANGELOG.md |
 | 1.0.0 | 1.0.0 首发——桌面媒体氛围主题：dock 工具条（字/景/声/乐/传）、图片视频壁纸（mp4/webm、在线资源断点续传、上传中途不落盘+暂停落盘.part+offset 续传+去重预检+真实删除）、音乐播放器、配色盘（单真源动态元素行+jscolor+预设切换）、开屏动画、HTTP API、playwright 积木化录像测试；版本记录 CHANGELOG.md |
 

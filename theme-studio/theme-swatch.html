@@ -55,7 +55,7 @@
   .comp-row .chip2 { flex: none; width: 34px; height: 20px; border-radius: 6px; border: 1px solid rgba(255,255,255,.18); }
   /* 左侧第 5 列：真实元素样子（samples 单片嵌入；指针事件关闭，不参与交互） */
   .comp-row .sample { flex: 1; min-width: 0; display: flex; align-items: center; overflow: hidden; }
-  .comp-row .sample iframe { width: 100%; height: 46px; border: none; pointer-events: none; transition: opacity .12s; }
+  .comp-row .sample iframe { width: 100%; height: 46px; min-height: 46px; background: rgba(10,12,18,.5); border-radius: 8px; border: none; pointer-events: none; transition: opacity .12s; }
   .comp-row .sample .no-samp { font-size: 11px; color: #6e6478; }
   /* 左侧第 6 列：不透明度滑块（针对第 5 列真实元素样子即时生效） */
   .comp-row .alpha-box { flex: none; display: flex; align-items: center; gap: 5px; }
@@ -120,6 +120,7 @@
       <div class="hcell">
         <span id="curLabel">…</span> <span class="badge badge-theme" id="curBadge">当前主题</span>
         <span class="hint">真源 css 元素色；可手改 hex；「应用」才写盘</span>
+        <button class="btn-act" id="btnAutoHierarchy" style="margin-top:6px" title="从宿主预览页 DOM 推断每个键所属大区（左侧边栏/右侧边栏/会话区）并写回 parent">🪄 自动获取层级</button>
       </div>
       <div class="hcell">
         预设包 <span class="badge badge-preset">preset/</span>

@@ -1144,12 +1144,15 @@ const server = createServer((req, res) => {
         const hex = /^#?[0-9a-f]{6}$/i.test(String(body.hex || '')) ? '#' + String(body.hex).replace(/^#/, '').toUpperCase() : '#362A56';
         const alpha = typeof body.alpha === 'number' && body.alpha >= 0 && body.alpha <= 1 ? body.alpha : 1;
         const label = String(body.label || '').trim() || key;
+        // 2026-09-2x 父子层级：parent 可选（父键名或组名——非键名 → 前端渲染为虚拟组标题行）
+        const parent = body.parent ? String(body.parent).trim().slice(0, 40) : '';
         const writes = [];
         if (zone === 'color') {
           // ① 配色真源 colors 键（前端元素行动态出现的数据源）
           const theme = readThemeJson();
           theme.colors = theme.colors || {};
           theme.colors[key] = { hex, alpha };
+          if (parent) theme.colors[key].parent = parent;
           writeThemeJson(theme); writes.push('theme-colors.json colors[' + key + ']');
           // ② theme-register.json 登记（生成器 --dsw-specific-<key> + identity 应用的数据源）
           const regPath = join(SCRIPT_DIR, 'json', 'theme-register.json');
@@ -1157,6 +1160,7 @@ const server = createServer((req, res) => {
           try { reg = JSON.parse(readFileSync(regPath, 'utf8')) || { rules: [] }; } catch (e) { /* 首次新建 */ }
           const entry = { key, selector, zone: 'color', label, hex, alpha };
           if (body.anchor) entry.anchor = String(body.anchor);
+          if (parent) entry.parent = parent;
           const ri = (reg.rules || []).findIndex((r) => r.key === key);
           if (ri >= 0) reg.rules[ri] = entry; else reg.rules.push(entry);
           writeFileSync(regPath, JSON.stringify(reg, null, 2) + '\n', 'utf8'); writes.push('theme-register.json');
@@ -1187,7 +1191,50 @@ const server = createServer((req, res) => {
     return;
   }
 
-  // /api/capsules/save → 写回胶囊配方（POST { rules }）：配色网站「宿主元素配色」区保存。
+  // /api/theme-hierarchy → 自动层级写回（POST { items: [{key, parent}] }）：配色盘「自动获取层级」
+  // 从宿主预览页 DOM 推断每个配色键所属大区（左侧边栏/右侧边栏/会话区…），前端采集后调用本 API
+  // 把 parent 写回 theme-colors.json（colors[key].parent）+ theme-register.json（同键规则带 parent）。
+  // 幂等：按 key 覆盖 parent；传空字符串即清除 parent。只改 parent 字段，不动 hex/alpha。
+  if (req.method === 'POST' && pathname === '/api/theme-hierarchy') {
+    if (!readDebugConfig().themeSwatch) { send(res, 404, 'theme-swatch 未开启'); return; }
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 256 * 1024) { req.destroy(); } });
+    req.on('end', () => {
+      try {
+        const body = JSON.parse(raw || '{}');
+        const items = Array.isArray(body.colors) ? body.colors : [];
+        const theme = readThemeJson();
+        theme.colors = theme.colors || {};
+        let n = 0;
+        for (const it of items) {
+          const key = String(it && it.key || '').trim();
+          if (!key || !(key in theme.colors)) continue;
+          const val = it.value === null || it.value === undefined ? '' : String(it.value).trim().slice(0, 40);
+          if (val) theme.colors[key].parent = val; else delete theme.colors[key].parent;
+          n++;
+        }
+        writeThemeJson(theme);
+        // register.json 同步 parent（zone=color 规则）
+        const regPath = join(SCRIPT_DIR, 'json', 'theme-register.json');
+        try {
+          const reg = JSON.parse(readFileSync(regPath, 'utf8')) || { rules: [] };
+          for (const it of items) {
+            const key = String(it && it.key || '').trim();
+            if (!key) continue;
+            const rule = (reg.rules || []).find((r) => r.key === key && r.zone === 'color');
+            if (!rule) continue;
+            const val = it && it.value === null || it.value === undefined ? '' : String(it.value).trim().slice(0, 40);
+            if (val) rule.parent = val; else delete rule.parent;
+          }
+          writeFileSync(regPath, JSON.stringify(reg, null, 2) + '\n', 'utf8');
+        } catch (e) { /* register.json 缺失/非法 → 仅写 colors */ }
+        send(res, 200, JSON.stringify({ ok: true, updated: n }), 'application/json; charset=utf-8');
+      } catch (e) {
+        send(res, 500, JSON.stringify({ ok: false, error: e.message }), 'application/json');
+      }
+    });
+    return;
+  }
   // 校验：rules 必须是数组、条目必须含 key/selector；只写固定文件 theme-studio/capsules.json
   // （不接收文件名参数，天然防路径穿越）；原子写（tmp+rename），失败不破坏原文件。
   if (req.method === 'POST' && pathname === '/api/capsules/save') {
