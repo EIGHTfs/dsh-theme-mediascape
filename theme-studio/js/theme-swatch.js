@@ -28,6 +28,42 @@ function hexOf(styleString) {
   const m = /#([0-9a-fA-F]{6})/i.exec(styleString || "");
   return m ? m[1].toUpperCase() : "";
 }
+// 取某角色/背景键的不透明度：ROLEALPHA 改过优先 → 否则真源 json 现值 → 默认 1。
+// （1020 抽取：renderBgLayers/renderLeft/serializeThemeJson 四处三态取值统一走这里）
+function alphaOf(key, cur) {
+  if (ROLEALPHA[key] !== undefined) return ROLEALPHA[key];
+  const a = cur && cur.alpha;
+  return a !== undefined ? a : 1;
+}
+// 公共 POST 封装（1020 抽取）：统一 /api/* 的 JSON 请求样板（fetch POST + headers + body + resp.json()；
+// 调用方继续按 j.ok 分支处理业务错误）。7 处 fetch POST 归一。
+async function apiPost(path, body) {
+  const resp = await fetch(path, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return resp.json();
+}
+// 右格行 HTML（1020 抽取：renderLeft 无 sw / 有 sw 两分支合并——差异仅「是否有色可显」与「未定义提示」，
+// 五行件套合成归一到这里）。rhex=显示 hex（可为空串）；showColor=是否显色（false → 透明底）；
+// isUndef=预设未定义该键（影响行 title / jscolor required / input 提示文案）。
+function rightCellHtml(c, rhex, showColor, isUndef) {
+  const rtc = textColorFor(rhex || "#000000");
+  const bg = showColor ? rhex : "transparent";
+  const bc = showColor ? rtc : "rgba(255,255,255,.08)";
+  const rowTitle = isUndef ? ` title="预设包未定义该键——为空，可调色后显示；保存预设自动并入"` : "";
+  const required = isUndef ? `,"required":false` : "";
+  const inputTitle = isUndef
+    ? "jscolor 调色盘：自由选色；「← 应用」套到左侧；保存预设自动并入"
+    : "jscolor 调色盘：自由选色；「← 应用」套到左侧该元素（不落盘）";
+  return `<div class="comp-row" data-role="${c.role}"${rowTitle}>
+    <span class="lbl" title="${c.role}">${c.text}</span>
+    <span class="ckey">${c.colorKey || "—"}</span>
+    <input class="pick-col" data-jscolor='{"format":"hex","position":"right","previewPosition":"bottom"${required}}' value="${rhex}" title="${inputTitle}">
+    <span class="chip2" style="background:${bg};border-color:${bc}"></span>
+    <button class="btn-app" data-role="${c.role}">← 应用</button>
+  </div>`;
+}
 function toast(msg) {
   const t = $("toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1800);
@@ -167,7 +203,7 @@ function renderBgLayers() {
   const rows = layers.map((L) => {
     const cur = THEME[L.key] || {};
     const hex = ROLECOLOR[L.key] || cur.hex || "#0a0c16";
-    const alpha = ROLEALPHA[L.key] !== undefined ? ROLEALPHA[L.key] : (cur.alpha !== undefined ? cur.alpha : 1);
+    const alpha = alphaOf(L.key, cur);
     const tc = textColorFor(hex);
     return `<div class="bg-row lv${L.lv}" data-key="${L.key}">
       <span class="lbl">${L.name}</span>
@@ -200,11 +236,7 @@ async function applyItem(key, hex, alpha) {
     value = c ? `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})` : hex;
   }
   try {
-    const resp = await fetch('/api/theme-apply', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: [{ key, hex: value }] }),
-    });
-    const j = await resp.json();
+    const j = await apiPost('/api/theme-apply', { items: [{ key, hex: value }] });
     if (!j.ok) { toast(`✗ ${j.error || "应用失败"}`); return false; }
     toast(`✅ ${key} → ${value} 已写入真源（build ${(j.build || "").includes("OK") ? "通过" : "见日志"}）`);
     return true;
@@ -229,9 +261,7 @@ async function renderLeft() {
     const depthStyle = c.depth ? ` style="margin-left:${c.depth * 22}px;border-left:2px solid rgba(var(--mediascape-dsh-theme-border,212,175,55),.25);padding-left:10px"` : "";
     const hex = compCurrentHex(c);
     const tc = textColorFor(hex);
-    const alpha = ROLEALPHA[c.role] !== undefined
-      ? ROLEALPHA[c.role]
-      : (((THEME.colors || {})[c.role] || {}).alpha !== undefined ? (THEME.colors[c.role].alpha) : 1);
+    const alpha = alphaOf(c.role, (THEME.colors || {})[c.role] || {});
     const sampleHtml = SAMPLE_CACHE[c.role] || "";
     // ── 左格：当前主题（真源 css）元素控件 ──
     const leftCell = `<div class="comp-row" data-role="${c.role}">
@@ -253,26 +283,10 @@ async function renderLeft() {
       // 预设包没有该元素键 → 为空（无默认色，透明）；支持调色（2026-09-26 定稿：
       // 右列未定义元素可调色，调色后显色；RIGHTCOLOR 记录；保存预设自动并入；「← 应用」套到左侧）
       const hasRight = !!RIGHTCOLOR[c.role];
-      const rhex = hasRight ? RIGHTCOLOR[c.role].toUpperCase() : "";
-      const rtc = textColorFor(rhex || "#000000");
-      rightCell = `<div class="comp-row" data-role="${c.role}" title="预设包未定义该键——为空，可调色后显示；保存预设自动并入">
-        <span class="lbl" title="${c.role}">${c.text}</span>
-        <span class="ckey">${c.colorKey || "—"}</span>
-        <input class="pick-col" data-jscolor='{"format":"hex","position":"right","previewPosition":"bottom","required":false}' value="${rhex}" title="jscolor 调色盘：自由选色；「← 应用」套到左侧；保存预设自动并入">
-        <span class="chip2" style="background:${hasRight ? rhex : "transparent"};border-color:${hasRight ? rtc : "rgba(255,255,255,.08)"}"></span>
-        <button class="btn-app" data-role="${c.role}">← 应用</button>
-      </div>`;
+      rightCell = rightCellHtml(c, hasRight ? RIGHTCOLOR[c.role].toUpperCase() : "", hasRight, true);
     } else {
       // 右侧值：调色盘改过（RIGHTCOLOR）优先 → 否则预设包实际色
-      const rhex = (RIGHTCOLOR[c.role] || sw.hex).toUpperCase();
-      const rtc = textColorFor(rhex);
-      rightCell = `<div class="comp-row" data-role="${c.role}">
-        <span class="lbl" title="${c.role}">${c.text}</span>
-        <span class="ckey">${c.colorKey || "—"}</span>
-        <input class="pick-col" data-jscolor='{"format":"hex","position":"right","previewPosition":"bottom"}' value="${rhex}" title="jscolor 调色盘：自由选色；「← 应用」套到左侧该元素（不落盘）">
-        <span class="chip2" style="background:${rhex};border-color:${rtc}"></span>
-        <button class="btn-app" data-role="${c.role}">← 应用</button>
-      </div>`;
+      rightCell = rightCellHtml(c, (RIGHTCOLOR[c.role] || sw.hex).toUpperCase(), true, false);
     }
     return `<div class="comp-pair" data-role="${c.role}"${depthStyle}>${leftCell}${rightCell}</div>`;
   }).join("");
@@ -407,7 +421,7 @@ function serializeThemeJson() {
   for (const bk of ['bg', 'bgSoft', 'bgLayer']) {
     const cur = THEME[bk] || {};
     const hex = ROLECOLOR[bk] || cur.hex || '';
-    const alpha = ROLEALPHA[bk] !== undefined ? ROLEALPHA[bk] : (cur.alpha !== undefined ? cur.alpha : 1);
+    const alpha = alphaOf(bk, cur);
     push(bk, hex, alpha);
   }
   // colors 全键（角色改过 → ROLECOLOR/ROLEALPHA，否则 json 现值）；动态行同源（roleRows = colors 键全量）
@@ -415,7 +429,7 @@ function serializeThemeJson() {
     const role = c.role;
     const cur = (THEME.colors || {})[role] || {};
     const hex = compCurrentHex(c) || cur.hex || '';
-    const alpha = ROLEALPHA[role] !== undefined ? ROLEALPHA[role] : (cur.alpha !== undefined ? cur.alpha : 1);
+    const alpha = alphaOf(role, cur);
     push(role, hex, alpha);
   }
   return items;
@@ -427,11 +441,7 @@ async function applyLeft() {
   if (!items.length) { toast("✗ 无真源数据"); return; }
   btn.disabled = true; btn.textContent = "应用中…";
   try {
-    const resp = await fetch('/api/theme-apply', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-    const j = await resp.json();
+    const j = await apiPost('/api/theme-apply', { items });
     toast(j.ok ? `✅ 已写入 theme-colors.json（${items.length} 键，含不透明度），build: ${(j.build || "").includes("OK") ? "通过" : "见日志"}` : `✗ ${j.error || "应用失败"}`);
     if (!j.ok) console.error("apply 失败:", j);
     else await loadTheme(); // 重新读真源（label 可能变化）
@@ -496,11 +506,7 @@ async function exportPreset() {
       colors[k] = { hex: h.startsWith('#') ? h : '#' + h, alpha: 1 };
     }
     const css = JSON.stringify({ label: want, colors });
-    const resp = await fetch('/api/theme-export', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: want, css }),
-    });
-    const j = await resp.json();
+    const j = await apiPost('/api/theme-export', { name: want, css });
     if (!j.ok) { toast(`✗ ${j.error || "导出失败"}`); return; }
     await loadPresets();
     state.pick = want;
@@ -516,11 +522,7 @@ async function renamePreset() {
   const name = (prompt(`给预设「${p.label}」起个新名字：`, p.label) || "").trim().slice(0, 40);
   if (!name || name === p.label) { if (name === p.label) toast("名字未变化"); return; }
   try {
-    const resp = await fetch('/api/theme-rename', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: p.id, name }),
-    });
-    const j = await resp.json();
+    const j = await apiPost('/api/theme-rename', { id: p.id, name });
     if (!j.ok) { toast(`✗ ${j.error || "改名失败"}`); return; }
     await loadPresets();
     toast(`✅ 预设已改名：${p.label} → ${name}`);
@@ -547,10 +549,7 @@ function bindRegisterElement() {
     const a = parseFloat($("regAlpha").value); if (!isNaN(a)) body.alpha = a;
     const anchor = $("regAnchor").value.trim(); if (anchor) body.anchor = anchor;
     try {
-      const r = await fetch("/api/theme-register-element", {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-      });
-      const d = await r.json();
+      const d = await apiPost("/api/theme-register-element", body);
       if (!d.ok) { toast("✗ " + (d.error || "注册失败")); return; }
       toast(`✅ 已注册 ${d.key}（${d.zone === "capsule" ? "胶囊区" : "颜色区"}）选择器 ${d.selector}${d.build && d.build.includes("FAIL") ? "，build 失败见预览日志" : "，已 build"}`);
       await Promise.all([loadTheme(), loadPresets()]);
@@ -607,8 +606,7 @@ async function autoHierarchy() {
   iframe.remove();
   if (!items.length) { toast("⚠️ 未探测到可判定大区的元素（宿主预览页渲染了吗？）"); return; }
   try {
-    const r = await fetch("/api/theme-hierarchy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ colors: items }) });
-    const d = await r.json();
+    const d = await apiPost("/api/theme-hierarchy", { colors: items });
     if (!d.ok) { toast("✗ " + (d.error || "写回失败")); return; }
     toast("✅ 自动层级更新 " + d.updated + " 键：" + items.map((i) => i.key + "→" + i.value).join("、"));
     await loadTheme(); renderLeft();
@@ -746,11 +744,7 @@ $("btnSaveCapsules").addEventListener("click", async () => {
   const btn = $("btnSaveCapsules");
   btn.disabled = true; btn.textContent = "保存并 build 中…";
   try {
-    const resp = await fetch("/api/capsules/save", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rules: CAPSULES }),
-    });
-    const j = await resp.json();
+    const j = await apiPost("/api/capsules/save", { rules: CAPSULES });
     if (!j.ok) { toast(`✗ ${j.error || "保存失败"}`); return; }
     await loadCapsules();
     toast(`✅ 已保存 ${j.count} 条胶囊配方 → capsules.json；build 已在服务端执行，刷新页面看效果`);

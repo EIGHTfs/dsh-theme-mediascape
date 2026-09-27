@@ -31,9 +31,13 @@ audit-history
 
 # ── 设计文档（不入库，工作区本地存档；docs/screenshots 截图目录除外）──
 # 2026-09-26 白名单：官方宿主元素修改记录.md 入库（其余 docs 忽略）
+# 2026-10-xx 白名单追加：分体式文档三件套（目录结构/函数列表/版本记录）是 README 引用的公开文档，必须入库
 docs/*
 !docs/screenshots/
 !docs/官方宿主元素修改记录.md
+!docs/目录结构.md
+!docs/函数列表.md
+!docs/版本记录.md
 
 # ── 回收站（删除操作的安全中转，不入库）──
 .trash/
@@ -48,6 +52,7 @@ docs/screenshots/*
 
 # ── 积木脚本录像/截图产物（不入库）──
 test/e2e/records/
+test/e2e/videos/
 
 # ── 运行时录像产物（不入库，仅精选 PNG 入库）──
 test/e2e/videos/*.webm

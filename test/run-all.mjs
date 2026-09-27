@@ -70,6 +70,23 @@ if (!PW_LIB) {
 const TEST_TIMEOUT_MS = 120_000; // 单测试超时（2 分钟，防死循环挂死）
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : '';
 const listOnly = process.argv.includes('--list');
+const includeEnv = process.argv.includes('--include-env') || process.argv.includes('--env');
+
+// ── 环境敏感测试（默认不参与总测试，单独跑）──
+// 这批测试会自己启停预览服务 / 依赖重浏览器资源（录屏、文件选择器、视频移交、主实例探测），
+// 在 run-all 批量串行里会互相踩（服务 PID 冲突、kill ESRCH、filechooser 超时）——
+// 单独用 `node test/run-all.mjs --only <名>` 或 `node test/e2e/<名>.mjs` 验证。
+// 传入 --include-env 可强制纳入总测试。
+const ENV_SENSITIVE = [
+  'boot-auto-video-handoff-check.mjs', // 视频移交：自启预览服务 + 接管同一元素 + 声音恢复（重浏览器态）
+  'plugin-startup-times.mjs',          // 依赖主实例插件分组加载（非预览环境）
+  'ui-blocks-recorder.mjs',            // 录屏（recordVideo + ffmpeg 转码，重资源）
+  'ui-dock-panels-screenshot.mjs',     // 全 dock 面板截图（多 iframe 交互，filechooser/click 时序敏感）
+  'ui-dock-upload-remove-check.mjs',   // 录屏 + 真实上传移除（filechooser 弹窗依赖）
+  'ui-media-no-overlap-check.mjs',     // 多 iframe 媒体不重叠（自启浏览器实例，kill 时序竞态）
+  'upload-api-check.mjs',              // 自启预览服务 + PID 探测（与总测试服务状态冲突）
+];
+const isEnvSensitive = (name) => ENV_SENSITIVE.some((s) => name.endsWith(s));
 
 // ── 收集测试文件 ──
 const tests = [];
@@ -90,11 +107,17 @@ if (listOnly) {
 }
 
 // ── 执行 ──
-let passAll = 0, failAll = 0, skipped = 0;
+let passAll = 0, failAll = 0, skipped = 0, envSkipped = 0;
 const results = [];
 for (const t of tests) {
   const name = relative(ROOT, t);
   if (only && !name.includes(only)) { skipped++; continue; }
+  // 环境敏感测试：默认排除（避免批量串行互相踩服务/浏览器资源），--include-env 才纳入
+  if (isEnvSensitive(name) && !includeEnv) {
+    envSkipped++;
+    console.log(`⏭️  ${name}  （环境敏感——默认跳过，单独跑：node test/run-all.mjs --only ${name.replace('.mjs', '')} 或 node ${name}）`);
+    continue;
+  }
   testLogWrite({ event: 'start', test: name });
   const env = { ...process.env };
   if (PW_LIB) env.LD_LIBRARY_PATH = PW_LIB + (env.LD_LIBRARY_PATH ? ':' + env.LD_LIBRARY_PATH : '');
@@ -118,8 +141,8 @@ for (const t of tests) {
   }
 }
 
-testLogWrite({ event: 'summary', passAll, failAll, skipped, filtered: !!only, pwLib: PW_LIB || '' });
+testLogWrite({ event: 'summary', passAll, failAll, skipped, envSkipped, filtered: !!only, pwLib: PW_LIB || '' });
 console.log(`\n══════════════════════════════════════`);
-console.log(`总计: ${passAll} 通过 / ${failAll} 失败${only ? '（过滤后）' : ''} / ${skipped} 跳过`);
+console.log(`总计: ${passAll} 通过 / ${failAll} 失败${only ? '（过滤后）' : ''} / ${skipped} 跳过${envSkipped ? ` / ${envSkipped} 环境敏感已排除（--include-env 强制纳入）` : ''}`);
 console.log(`playwright 库: ${PW_LIB || '未探测到（浏览器类测试需 PLAYWRIGHT_ROOT）'}`);
 process.exit(failAll > 0 ? 1 : 0);

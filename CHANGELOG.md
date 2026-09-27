@@ -1,7 +1,14 @@
 # 发布记录（Changelog）
 
-> 本文件为版本发布历史权威档案，README「版本记录」章节仅保留引用。
-> **1.0.1 审计优化** + **1.0.0 正式首发**：1.0.0 为单一发布版本（完整能力见下），1.0.1 为审计整改（见下）。
+> 本文件为版本发布历史权威档案，README「版本记录」章节仅保留引用（版本表外置 docs/版本记录.md）。
+
+## 1.0.4（配色盘公共函数抽取 + 分体式文档外置）
+
+**dsh-theme-mediascape 1.0.4**——配色盘代码优化与文档结构整理（行为零变化）：
+- **公共函数抽取**：theme-swatch.js 重复样板归一——①`alphaOf`（不透明度三态取值 4 处归一：ROLEALPHA 优先→真源 alpha→1）②`apiPost`（/api/* fetch POST 样板 7 处归一：headers+body+resp.json）③`rightCellHtml`（右格行双分支 5 件套 HTML 合并，差异参数化 showColor/isUndef）
+- **分体式文档外置**：版本记录/函数列表/目录结构三块从 README 拆到 docs/ 独立 md（带 dshgp 标记块，git-push 生成器 doc-version/doc-func/doc-tree 自动维护），README 改为引用链接
+- **目录树登记**：tree-doc.json 补齐 38 个索引键（三外置文档/新版测试/vendor 等）
+- **测试**：theme-swatch 三项回归通过（jscolor/preset-switch/screenshots）；doc-tree/doc-func/doc-version check 无漂移
 
 ## 1.0.3（配色盘层级 + 自动获取层级 + jscolor + 分片自动生成）
 
