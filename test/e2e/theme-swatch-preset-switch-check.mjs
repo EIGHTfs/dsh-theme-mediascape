@@ -1,3 +1,29 @@
+// ── 环境自推导（公开插件可移植）：pwviewer / pwviewer-libs / fonts 为仓库邻居目录
+// （<harness>/pwviewer 等），从本文件位置向上搜索；env 可覆盖：PW_ROOT / MS_CHROMELIBS / MS_FONTCONF /
+// MS_CHROME / MS_BROWSERS / MS_PWIMPORT。找不到时留空（浏览器测试需 env 提供）。
+import { fileURLToPath as fURL, pathToFileURL as pURL } from 'node:url';
+import { dirname as dName, join as jn, resolve as rslv } from 'node:path';
+import { existsSync as exSync } from 'node:fs';
+const SELF_DIR = dName(fURL(import.meta.url));
+function findNeighbor(name, up = 8) {
+  let d = SELF_DIR;
+  for (let i = 0; i < up; i++) {
+    if (exSync(jn(d, name))) return jn(d, name);
+    d = rslv(d, '..');
+  }
+  return null;
+}
+const PW_ROOT = process.env.PW_ROOT || findNeighbor('pwviewer');
+const PW_BROWSERS = process.env.MS_BROWSERS || (PW_ROOT ? jn(PW_ROOT, 'browsers') : '');
+const CHROME = process.env.MS_CHROME || (PW_ROOT
+  ? jn(PW_BROWSERS, exSync(jn(PW_BROWSERS, 'chromium-1243')) ? 'chromium-1243/chrome-linux64/chrome' : 'chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell')
+  : '');
+const MS_LIBS = process.env.MS_CHROMELIBS || findNeighbor('pwviewer-libs');
+const MS_FONTS = process.env.MS_FONTCONF || (() => { const f = findNeighbor('fonts'); return f ? jn(f, 'fonts.conf') : ''; })();
+process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.MS_BROWSERS || PW_BROWSERS || process.env.PLAYWRIGHT_BROWSERS_PATH || '';
+const PW_IMPORT = process.env.MS_PWIMPORT || (PW_ROOT ? pURL(jn(PW_ROOT, 'node_modules', 'playwright', 'index.mjs')).href : '');
+const { chromium } = await import(PW_IMPORT);
+
 // 配色盘「切换预设真实读取」一键验证（2026-09-26 定稿）：
 // 场景：外部覆盖保存预设（同名）后，切换预设（别的 → 该预设）必须重新读取真实文件，
 // 右列显示新值——不能用内存缓存旧值。
@@ -5,14 +31,10 @@
 // ③切换预设触发 change → loadPresets 真实读盘 ④断言右列显示 #112233。
 // 零污染：测试前备份预设文件内容，测试后原样写回（不污染用户预设）。
 // 运行：node test/e2e/theme-swatch-preset-switch-check.mjs（一键，PASS/FAIL 输出，退出码 0/1）
-import { chromium } from 'file:///volume1/VirtualDSM/DeepSeekHarness/pwviewer/node_modules/playwright/index.mjs';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
-const CHROME = process.env.MS_CHROME || '/volume1/@appdata/DeepSeekHarness-NAS/0.1.6-alpha.1/工作区/.pwviewer/browsers/chromium-1243/chrome-linux64/chrome';
-const MS_LIBS = process.env.MS_CHROMELIBS || '/volume1/VirtualDSM/DeepSeekHarness/pwviewer-libs';
-const MS_FONTS = process.env.MS_FONTCONF || '/volume1/VirtualDSM/DeepSeekHarness/fonts/fonts.conf';
 const BASE = process.env.MS_PREVIEW || 'http://127.0.0.1:30999';
-const PRESET_FILE = process.env.MS_PRESET_FILE || '/volume1/@appdata/DeepSeekHarness-NAS/0.1.6-alpha.1/工作区/dsh-theme-mediascape/theme-studio/json/preset/知更鸟·晴歌.json';
+const PRESET_FILE = process.env.MS_PRESET_FILE || jn(rslv(SELF_DIR, '..', '..'), 'theme-studio', 'json', 'preset', '知更鸟·晴歌.json');
 const TEST_HEX = '#112233';
 
 let fails = 0;

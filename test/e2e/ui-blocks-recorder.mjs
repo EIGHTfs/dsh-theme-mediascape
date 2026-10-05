@@ -8,8 +8,6 @@
 //       node test/e2e/ui-blocks-recorder.mjs --flow custom --blocks '[{"b":"wait","arg":500}]'
 // 运行前提同 ui-dock-upload-remove-check（chromium/运行库/CJK 字体，env 可覆盖）。
 // PLAYWRIGHT_BROWSERS_PATH 需在 import playwright 前设置（库启动时读取，launch env 不影响）。
-process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.MS_PWBROWSERS || '/volume1/VirtualDSM/DeepSeekHarness/pwviewer/browsers';
-import { chromium } from 'file:///volume1/VirtualDSM/DeepSeekHarness/pwviewer/node_modules/playwright/index.mjs';
 import { mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,9 +16,6 @@ const SELF_DIR = dirname(fileURLToPath(import.meta.url));
 const RECORDS_DIR = process.env.MS_RECORDS || join(SELF_DIR, 'records');
 mkdirSync(RECORDS_DIR, { recursive: true });
 
-const CHROME = process.env.MS_CHROME || '/volume1/@appdata/DeepSeekHarness-NAS/0.1.6-alpha.1/工作区/.pwviewer/browsers/chromium-1243/chrome-linux64/chrome';
-const MS_LIBS = process.env.MS_CHROMELIBS || '/volume1/VirtualDSM/DeepSeekHarness/pwviewer-libs';
-const MS_FONTS = process.env.MS_FONTCONF || '/volume1/VirtualDSM/DeepSeekHarness/fonts/fonts.conf';
 const BASE = process.env.MS_PREVIEW || 'http://127.0.0.1:30999';
 
 // ── 积木库：每块 = { name, run(ctx) }，ctx 提供 page/日志；执行器按序 await ──

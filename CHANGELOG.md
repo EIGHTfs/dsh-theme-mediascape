@@ -2,6 +2,20 @@
 
 > 本文件为版本发布历史权威档案，README「版本记录」章节仅保留引用（版本表外置 docs/版本记录.md）。
 
+- **localforage 运行时库**：assets/vendor/localforage-bundle.js（从官方 dist 剥离 UMD 包装，build 注入 client.js 工厂体内实例化挂 `globalThis.localforage`——避免 UMD 覆盖客户端模块契约；支持 Blob/容量大，自动降级 IndexedDB/WebSQL/localStorage）
+- **缓存门面 lfa\***：localforage 优先 + 自写 idb 兜底（lfaGetAll/lfaPut/lfaRemove，key 命名空间 `<store>:<id>`，与 idb store 同名对照）
+- **音乐/封面读取接入**：covers/music 缓存读取改走 lfaGetAll（localforage 优先）
+- 实测：localforage 挂载 + Blob 读写 roundtrip 通过、页面无错误；build 全绿
+
+
+## 1.1.0（命名空间清理 + 路径可移植化）
+
+**dsh-theme-mediascape 1.1.0**——命名空间清理 + 公开插件可移植性优化（**支持 DSH `>=0.1.6-0 <0.3.0-0`**：0.1.6 开发验证 + 0.2.0-rc.2 实测可用；peerDependencies 声明 `@deepseek-ai/dsh`，防 0.3.0 破坏性变更）：
+- **ff 前缀全去除**：ffFetch→apiFetch、ffIdbOpen/GetAll/Put/Delete→idb*、CSS 动画 ffFadeIn/ffTwinkle/ffStardust/ffSpin/ffFloat/ffBootPulse/ffGifIn→去 ff、常量 FF_DB_*/FF_FETCH_TIMEOUT_MS→去前缀（client-parts 7 文件 44 处）
+- **硬编码路径全部自推导**（公开插件可移植）：test/e2e 与 theme-studio/tests 注入统一自推导块（pwviewer / pwviewer-libs / fonts 仓库邻居向上搜索 + env 覆盖 PW_ROOT / MS_CHROMELIBS / MS_FONTCONF / MS_CHROME / MS_BROWSERS / MS_PWIMPORT）；playwright 改动态 import、chromium launch 补运行库 env；start-preview.mjs 的 PATH 拼接改 dirname(process.execPath) 推导、playwright/chromium 改 SCRIPT_DIR 邻居推导；仓库内路径（preset/截图/测试页）与 DSH_HOME 改相对/env 推导
+- **renderVideoLayer 拆分**：圈复杂度 52 → 拆 resolveVideoEl / applyVideoSrc / applyVideoAutoPlay 三个子函数（主函数留流程骨架），审计质量 85.1/A（0 拦截）
+- **版本统一 1.1.0**（含 1.0.2 mht 快照还原预览 / 1.0.3 / 1.0.4 配色盘公共函数抽取 累积；package.json / online.js UA / CHANGELOG / README 同步）
+- **localForage 媒体缓存接入**：assets/vendor/localforage-bundle.js（官方 1.10.0 剥离 UMD 包装，build 注入 client.js 工厂体内实例化挂 `globalThis.localforage`——避免 UMD 覆盖客户端模块契约；支持 Blob/大容量/自动降级 IndexedDB/WebSQL/localStorage）；缓存门面 lfaGetAll/lfaPut/lfaRemove（localforage 优先 + 自写 idb 兜底，key 命名空间 `<store>:<id>`）；音乐/封面缓存读取改走 lfaGetAll；实测 Blob 读写 roundtrip 通过、页面无错误
 ## 1.0.4（配色盘公共函数抽取 + 分体式文档外置）
 
 **dsh-theme-mediascape 1.0.4**——配色盘代码优化与文档结构整理（行为零变化）：

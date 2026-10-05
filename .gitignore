@@ -58,3 +58,6 @@ test/e2e/videos/
 test/e2e/videos/*.webm
 # NFS 残留（打开文件删除标记，不入库）
 *.nfs*
+
+# ── pnpm/安装中间产物（.archify：pnpm store 归档缓存目录）──
+.archify/

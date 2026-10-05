@@ -1,13 +1,35 @@
+// ── 环境自推导（公开插件可移植）：pwviewer / pwviewer-libs / fonts 为仓库邻居目录
+// （<harness>/pwviewer 等），从本文件位置向上搜索；env 可覆盖：PW_ROOT / MS_CHROMELIBS / MS_FONTCONF /
+// MS_CHROME / MS_BROWSERS / MS_PWIMPORT。找不到时留空（浏览器测试需 env 提供）。
+import { fileURLToPath as fURL, pathToFileURL as pURL } from 'node:url';
+import { dirname as dName, join as jn, resolve as rslv } from 'node:path';
+import { existsSync as exSync } from 'node:fs';
+const SELF_DIR = dName(fURL(import.meta.url));
+function findNeighbor(name, up = 8) {
+  let d = SELF_DIR;
+  for (let i = 0; i < up; i++) {
+    if (exSync(jn(d, name))) return jn(d, name);
+    d = rslv(d, '..');
+  }
+  return null;
+}
+const PW_ROOT = process.env.PW_ROOT || findNeighbor('pwviewer');
+const PW_BROWSERS = process.env.MS_BROWSERS || (PW_ROOT ? jn(PW_ROOT, 'browsers') : '');
+const CHROME = process.env.MS_CHROME || (PW_ROOT
+  ? jn(PW_BROWSERS, exSync(jn(PW_BROWSERS, 'chromium-1243')) ? 'chromium-1243/chrome-linux64/chrome' : 'chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell')
+  : '');
+const MS_LIBS = process.env.MS_CHROMELIBS || findNeighbor('pwviewer-libs');
+const MS_FONTS = process.env.MS_FONTCONF || (() => { const f = findNeighbor('fonts'); return f ? jn(f, 'fonts.conf') : ''; })();
+process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.MS_BROWSERS || PW_BROWSERS || process.env.PLAYWRIGHT_BROWSERS_PATH || '';
+const PW_IMPORT = process.env.MS_PWIMPORT || (PW_ROOT ? pURL(jn(PW_ROOT, 'node_modules', 'playwright', 'index.mjs')).href : '');
+const { chromium } = await import(PW_IMPORT);
+
 // 配色盘 jscolor 调色盘交互验证（2026-09-26 新增）：
 // ①右格调色盘改用 jscolor 后，验证 pick-col 挂载了 jscolor 实例
 // ②点击右格第 4 列色块（chip2）→ jscolor 弹层（.jscolor-wrap/.jscolor-picker）呼出可见
 // ③jscolor 选色（fromString 模拟）触发 input 事件 → RIGHTCOLOR/色块联动（事件链不断）
 // 只读验证（不写盘不污染真源）；运行环境 chromium/运行库/CJK 字体路径可 env 覆盖。
-import { chromium } from 'file:///volume1/VirtualDSM/DeepSeekHarness/pwviewer/node_modules/playwright/index.mjs';
 
-const CHROME = process.env.MS_CHROME || '/volume1/@appdata/DeepSeekHarness-NAS/0.1.6-alpha.1/工作区/.pwviewer/browsers/chromium-1243/chrome-linux64/chrome';
-const MS_LIBS = process.env.MS_CHROMELIBS || '/volume1/VirtualDSM/DeepSeekHarness/pwviewer-libs';
-const MS_FONTS = process.env.MS_FONTCONF || '/volume1/VirtualDSM/DeepSeekHarness/fonts/fonts.conf';
 const BASE = process.env.MS_PREVIEW || 'http://127.0.0.1:30999';
 
 let fails = 0;
