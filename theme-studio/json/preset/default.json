@@ -1,0 +1,58 @@
+{
+  "label": "默认",
+  "badge": "默认",
+  "colors": {
+    "btn-primary": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "btn-secondary": {
+      "hex": "#7DFF9E",
+      "alpha": 1
+    },
+    "chip-active": {
+      "hex": "#7DFF9E",
+      "alpha": 1
+    },
+    "text-primary": {
+      "hex": "#EAFFF3",
+      "alpha": 1
+    },
+    "text-dim": {
+      "hex": "#A9C9B9",
+      "alpha": 1
+    },
+    "text-tertiary": {
+      "hex": "#6F8A7C",
+      "alpha": 1
+    },
+    "gold-glow": {
+      "hex": "#FFD93B",
+      "alpha": 1
+    },
+    "todo-panel": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "queue-dock": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "dock-bar": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "sidebar-fill": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "markdown-capsule": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "status-capsule": {
+      "hex": "#00E676",
+      "alpha": 1
+    }
+  }
+}

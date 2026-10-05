@@ -1,0 +1,58 @@
+{
+  "label": "流萤",
+  "badge": "预设",
+  "colors": {
+    "btn-primary": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "btn-secondary": {
+      "hex": "#7DFF9E",
+      "alpha": 1
+    },
+    "chip-active": {
+      "hex": "#00FF87",
+      "alpha": 1
+    },
+    "text-primary": {
+      "hex": "#EAFFF3",
+      "alpha": 1
+    },
+    "text-dim": {
+      "hex": "#A9C9B9",
+      "alpha": 1
+    },
+    "text-tertiary": {
+      "hex": "#6F8A7C",
+      "alpha": 1
+    },
+    "gold-glow": {
+      "hex": "#00FF87",
+      "alpha": 1
+    },
+    "todo-panel": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "queue-dock": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "dock-bar": {
+      "hex": "#050A14",
+      "alpha": 1
+    },
+    "sidebar-fill": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "markdown-capsule": {
+      "hex": "#00E676",
+      "alpha": 1
+    },
+    "status-capsule": {
+      "hex": "#F5F7FA",
+      "alpha": 1
+    }
+  }
+}

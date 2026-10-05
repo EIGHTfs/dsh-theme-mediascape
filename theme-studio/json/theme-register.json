@@ -1,0 +1,22 @@
+{
+  "comment": "自动注册元素清单（2026-09-2x 自动化 API 写入）：配色区/胶囊区元素可由 POST /api/theme-register-element 自动注册——className → 解析语义键（去 hash 前缀尾缀）+ 选择器（[class*='_尾缀']，可传 anchor 覆盖为 data 锚点）。zone=color：写 theme-colors.json colors 键（配色盘自动出元素行）+ 生成器输出 --dsw-specific-<key> + identity 按 selector 应用底色（build 即生效）；zone=capsule：写 capsules.json 规则（build 注入胶囊 CSS）。",
+  "rules": [
+    {
+      "key": "textDocument",
+      "selector": "[class*='_textDocument']",
+      "zone": "color",
+      "label": "textDocument",
+      "hex": "#362A56",
+      "alpha": 1
+    },
+    {
+      "key": "docPreview",
+      "selector": "[data-document-preview]",
+      "zone": "color",
+      "label": "右侧边栏 · 文档预览公共容器（data-document-preview）",
+      "hex": "#362A56",
+      "alpha": 1,
+      "anchor": "data-document-preview"
+    }
+  ]
+}

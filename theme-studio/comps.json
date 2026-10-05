@@ -1,0 +1,95 @@
+{
+  "comment": "配色对照页组件模拟区配置（元素 class 键规范，2026-09-22 改：每个元素一个唯一键，键名=元素 class，与真源/预设 css 的 --swatch-<key> 一一对应；无独立语义键；color 字段已删——颜色直接取 --swatch-<key> 自身。kind=渲染模板名（solid/soft/chip/text/glow/panel/panel-top/dock/sidebar/capsule/status）。新增角色只需在此加一行，无需改代码。",
+  "comps": [
+    {
+      "key": "btn-primary",
+      "text": "主要按钮",
+      "kind": "solid"
+    },
+    {
+      "key": "btn-secondary",
+      "text": "次要按钮",
+      "kind": "soft"
+    },
+    {
+      "key": "chip-active",
+      "text": "激活态",
+      "kind": "chip"
+    },
+    {
+      "key": "text-primary",
+      "text": "主文字 · 知更鸟的歌声",
+      "kind": "text"
+    },
+    {
+      "key": "text-dim",
+      "text": "次文字",
+      "kind": "text"
+    },
+    {
+      "key": "text-tertiary",
+      "text": "三级文字",
+      "kind": "text"
+    },
+    {
+      "key": "gold-glow",
+      "text": "✦ 点缀金色高亮 ✦",
+      "kind": "glow"
+    },
+    {
+      "key": "todo-panel",
+      "text": "① 待办面板（todo）",
+      "kind": "panel"
+    },
+    {
+      "key": "queue-dock",
+      "text": "② 排队消息条",
+      "kind": "panel-top"
+    },
+    {
+      "key": "dock-bar",
+      "text": "③ 悬浮 dock 按钮条",
+      "kind": "dock"
+    },
+    {
+      "key": "sidebar-fill",
+      "text": "④ 右侧边栏",
+      "kind": "sidebar"
+    },
+    {
+      "key": "sidebar-left",
+      "text": "左侧边栏（lPcGpa_root）",
+      "kind": "sidebar"
+    },
+    {
+      "key": "sidebar-brand",
+      "text": "品牌区（lPcGpa_brand）",
+      "kind": "sidebar"
+    },
+    {
+      "key": "panelBody",
+      "text": "右侧边栏 · 文件树 body（data-files-body）",
+      "kind": "sidebar"
+    },
+    {
+      "key": "markdown-capsule",
+      "text": "⑤ AI 回复胶囊",
+      "kind": "capsule"
+    },
+    {
+      "key": "status-capsule",
+      "text": "⑥ 状态胶囊（深度求索中）",
+      "kind": "status"
+    },
+    {
+      "key": "sessionHeader",
+      "text": "会话头部（txgHvq_header）",
+      "kind": "panel"
+    },
+    {
+      "key": "textDocument",
+      "text": "右侧边栏 · 文档预览（data-textpreview-plain）",
+      "kind": "panel"
+    }
+  ]
+}
