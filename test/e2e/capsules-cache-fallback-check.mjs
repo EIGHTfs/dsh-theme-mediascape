@@ -84,7 +84,7 @@ if (injected && injected.length > 0) {
 console.log('── 步骤 4：日志如实记录 ──');
 const logCandidates = [
   join(DSH_HOME, 'theme-mediascape', 'logs', 'build-capsules.log'),
-  join('/volume1/VirtualDSM/DeepSeekHarness/.dsh', 'theme-mediascape', 'logs', 'build-capsules.log'),
+  join(process.env.DSH_HOME || join(os.homedir(), '.dsh'), 'theme-mediascape', 'logs', 'build-capsules.log'),
 ];
 let logRecorded = false, logTail = '';
 for (const lp of logCandidates) {

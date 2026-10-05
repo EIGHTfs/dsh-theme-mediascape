@@ -55,6 +55,8 @@ console.log("boot gif: (设计移除 build 注入，完全按运行时 boot.json
 
 // ── 2) 注入 ──
 let src = PART_ORDER.map((name) => fs.readFileSync(path.join(partsDir, name), "utf8")).join(""); // dsh-skip-residue（拼接必需全量读入小片段）
+// ── localforage 运行时库（2026-10-05：assets/vendor/localforage-bundle.js 剥离 UMD 包装后注入，factory 体内实例化挂 globalThis）──
+src = fs.readFileSync(path.join(root, "assets", "vendor", "localforage-bundle.js"), "utf8") + "\n" + src;
 
 // 壁纸/音乐/封面/表情包均不再内嵌（运行时 API 拉取）→ 清单占位符注入空数组
 src = src.replace(

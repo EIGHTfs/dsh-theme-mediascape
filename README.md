@@ -327,6 +327,8 @@ function startMyBtn(dock) {
 
 **要求**：DeepSeek Harness（`dsh`）+ Node.js；纯客户端主题，无额外依赖。
 
+> **支持 DSH 版本**：`>=0.1.6-0 <0.3.0-0`（0.1.6 开发验证 + 0.2.0-rc.2 实测可用；防 0.3.0 破坏性变更）——package.json `peerDependencies` 声明 `@deepseek-ai/dsh`。
+
 ### 方式一：打包安装（本主题暂未发布 npm）
 
 ```powershell
@@ -495,7 +497,7 @@ dsh-theme-mediascape（一个 GitHub 仓库，monorepo）
 
 ## 版本记录
 
-完整发布历史（含 1.0.2 mht 快照还原预览、1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
+完整发布历史（含 1.1.1 localForage 媒体缓存、1.1.0 命名空间清理与路径可移植化、1.0.2 mht 快照还原预览、1.0.1 审计优化与 1.0.0 首发说明）见 [CHANGELOG.md](CHANGELOG.md)。
 
 
 ## 注意事项

@@ -1,16 +1,38 @@
+// ── 环境自推导（公开插件可移植）：pwviewer / pwviewer-libs / fonts 为仓库邻居目录
+// （<harness>/pwviewer 等），从本文件位置向上搜索；env 可覆盖：PW_ROOT / MS_CHROMELIBS / MS_FONTCONF /
+// MS_CHROME / MS_BROWSERS / MS_PWIMPORT。找不到时留空（浏览器测试需 env 提供）。
+import { fileURLToPath as fURL, pathToFileURL as pURL } from 'node:url';
+import { dirname as dName, join as jn, resolve as rslv } from 'node:path';
+import { existsSync as exSync } from 'node:fs';
+const SELF_DIR = dName(fURL(import.meta.url));
+function findNeighbor(name, up = 8) {
+  let d = SELF_DIR;
+  for (let i = 0; i < up; i++) {
+    if (exSync(jn(d, name))) return jn(d, name);
+    d = rslv(d, '..');
+  }
+  return null;
+}
+const PW_ROOT = process.env.PW_ROOT || findNeighbor('pwviewer');
+const PW_BROWSERS = process.env.MS_BROWSERS || (PW_ROOT ? jn(PW_ROOT, 'browsers') : '');
+const CHROME = process.env.MS_CHROME || (PW_ROOT
+  ? jn(PW_BROWSERS, exSync(jn(PW_BROWSERS, 'chromium-1243')) ? 'chromium-1243/chrome-linux64/chrome' : 'chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell')
+  : '');
+const MS_LIBS = process.env.MS_CHROMELIBS || findNeighbor('pwviewer-libs');
+const MS_FONTS = process.env.MS_FONTCONF || (() => { const f = findNeighbor('fonts'); return f ? jn(f, 'fonts.conf') : ''; })();
+process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.MS_BROWSERS || PW_BROWSERS || process.env.PLAYWRIGHT_BROWSERS_PATH || '';
+const PW_IMPORT = process.env.MS_PWIMPORT || (PW_ROOT ? pURL(jn(PW_ROOT, 'node_modules', 'playwright', 'index.mjs')).href : '');
+const { chromium } = await import(PW_IMPORT);
+
 // 验证「重复 apply 声音叠加」修复：幂等清理会暂停+清空播放中的 video/audio（含独立 Audio 实例）
 // playwright 实测（2026-09-2x）：重复 apply/热重载「声音叠加」修复验证——
 // apply 幂等清理必须先停旧媒体再删元素：DOM remove() 不暂停 video/audio（移除后仍继续播放），
 // 直接删容器会新旧声音叠加（开发中每次重新 build 实测 bug）。验证：
 // ①旧 .mediascape-dsh-bg 容器被删除 ②其中播放中的 video 随清理消失 ③独立音乐 Audio（不在 DOM）
 // 经 window.__mediascapeDshMusicAudio 引用被暂停并清空 src。运行前提同 ui-dock-upload-remove-check。
-import { chromium } from 'file:///volume1/VirtualDSM/DeepSeekHarness/pwviewer/node_modules/playwright/index.mjs';
-const CHROME = process.env.MS_CHROME || '/volume1/@appdata/DeepSeekHarness-NAS/0.1.6-alpha.1/工作区/.pwviewer/browsers/chromium-1243/chrome-linux64/chrome';
-const MS_LIBS = process.env.MS_CHROMELIBS || '/volume1/VirtualDSM/DeepSeekHarness/pwviewer-libs';
-const MS_FONTS = process.env.MS_FONTCONF || '/volume1/VirtualDSM/DeepSeekHarness/fonts/fonts.conf';
 const browser = await chromium.launch({
   executablePath: CHROME, headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'],
-  env: { ...process.env, LD_LIBRARY_PATH: '/dev/shm/ms-chromelibs', FONTCONFIG_FILE: MS_FONTS },
+  env: { ...process.env, LD_LIBRARY_PATH: MS_LIBS, FONTCONFIG_FILE: MS_FONTS },
 });
 const page = await browser.newPage();
 let fails = 0;

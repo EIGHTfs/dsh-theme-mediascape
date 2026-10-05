@@ -1,3 +1,29 @@
+// ── 环境自推导（公开插件可移植）：pwviewer / pwviewer-libs / fonts 为仓库邻居目录
+// （<harness>/pwviewer 等），从本文件位置向上搜索；env 可覆盖：PW_ROOT / MS_CHROMELIBS / MS_FONTCONF /
+// MS_CHROME / MS_BROWSERS / MS_PWIMPORT。找不到时留空（浏览器测试需 env 提供）。
+import { fileURLToPath as fURL, pathToFileURL as pURL } from 'node:url';
+import { dirname as dName, join as jn, resolve as rslv } from 'node:path';
+import { existsSync as exSync } from 'node:fs';
+const SELF_DIR = dName(fURL(import.meta.url));
+function findNeighbor(name, up = 8) {
+  let d = SELF_DIR;
+  for (let i = 0; i < up; i++) {
+    if (exSync(jn(d, name))) return jn(d, name);
+    d = rslv(d, '..');
+  }
+  return null;
+}
+const PW_ROOT = process.env.PW_ROOT || findNeighbor('pwviewer');
+const PW_BROWSERS = process.env.MS_BROWSERS || (PW_ROOT ? jn(PW_ROOT, 'browsers') : '');
+const CHROME = process.env.MS_CHROME || (PW_ROOT
+  ? jn(PW_BROWSERS, exSync(jn(PW_BROWSERS, 'chromium-1243')) ? 'chromium-1243/chrome-linux64/chrome' : 'chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell')
+  : '');
+const MS_LIBS = process.env.MS_CHROMELIBS || findNeighbor('pwviewer-libs');
+const MS_FONTS = process.env.MS_FONTCONF || (() => { const f = findNeighbor('fonts'); return f ? jn(f, 'fonts.conf') : ''; })();
+process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.MS_BROWSERS || PW_BROWSERS || process.env.PLAYWRIGHT_BROWSERS_PATH || '';
+const PW_IMPORT = process.env.MS_PWIMPORT || (PW_ROOT ? pURL(jn(PW_ROOT, 'node_modules', 'playwright', 'index.mjs')).href : '');
+const { chromium } = await import(PW_IMPORT);
+
 // 视频壁纸播放连续性回归（2026-09-23 加）：
 //   覆盖「boot 开屏 → 移交壁纸层」全过程的 currentTime 连续性——开屏视频（file:auto 同一份流）
 //   播完移交给壁纸层继续消费同一元素，时间必须连续推进、不得中断从头播放。
@@ -7,10 +33,8 @@
 //   currentTime → 断言采样序列不回退（ct 单调不降超过容差=中断从头播）。
 // 用法：node test/e2e/video-handoff-continuity-check.mjs（需 30999 预览服务运行，视频壁纸存在）
 // 路径纪律：相对自身推导；浏览器/库路径由运行环境注入（PLAYWRIGHT_ROOT 或相对邻居，见下方探测）。
-import { chromium } from 'file:///volume1/VirtualDSM/DeepSeekHarness/pwviewer/node_modules/playwright/index.mjs';
 
 const BASE = 'http://127.0.0.1:30999';
-const EXE = '/volume1/VirtualDSM/DeepSeekHarness/pwviewer/browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
 const SAMPLES = 20;      // 采样次数（×400ms ≈ 8s，覆盖 boot 短段 + 移交后继续播）
 const SAMPLE_MS = 400;   // 采样间隔（ms）
 const TIME_TOLERANCE = 0.5; // currentTime 回退容差（秒，> 此值判定中断从头播）
@@ -28,9 +52,9 @@ try {
 } catch { console.log('FAIL  30999 预览服务不可达（先 bash theme-studio/start.sh start）'); process.exit(1); }
 
 const browser = await chromium.launch({
-  executablePath: EXE, args: ['--no-sandbox', '--disable-gpu', '--autoplay-policy=no-user-gesture-required'],
+  executablePath: CHROME, args: ['--no-sandbox', '--disable-gpu', '--autoplay-policy=no-user-gesture-required'],
   // 2026-09-2x：运行库/CJK 字体（本机持久位置，env 可覆盖——headless shell 缺 libatk 起不来）
-  env: { ...process.env, LD_LIBRARY_PATH: process.env.MS_CHROMELIBS || '/volume1/VirtualDSM/DeepSeekHarness/pwviewer-libs', FONTCONFIG_FILE: process.env.MS_FONTCONF || '/volume1/VirtualDSM/DeepSeekHarness/fonts/fonts.conf' },
+  env: { ...process.env, LD_LIBRARY_PATH: MS_LIBS, FONTCONFIG_FILE: MS_FONTS },
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const pageErrors = [];

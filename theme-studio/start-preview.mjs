@@ -25,7 +25,7 @@ import { createServer } from 'node:http';
 import { request as httpRequest } from 'node:http';
 import { createReadStream, existsSync, statSync, readFileSync, readdirSync, writeFileSync, mkdirSync, renameSync, appendFileSync, chmodSync } from 'node:fs';
 import { join, normalize, extname, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import os from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 import { readDebugConfig, logEnabled } from '../lib/debug.js';
@@ -961,7 +961,7 @@ const server = createServer((req, res) => {
         // 自测照跑，跳过重启（新产物下次启动即生效，无需本次重启）。
         let buildOut = '';
         try {
-          buildOut = execSync(`PATH="/var/packages/DeepSeekHarness-NAS/target/bin:$PATH" DSH_THEME_NO_RESTART=1 node build.cjs`, {
+          buildOut = execSync(`PATH="${dirname(process.execPath)}:$PATH" DSH_THEME_NO_RESTART=1 node build.cjs`, {
             cwd: THEME_ROOT, encoding: 'utf8', timeout: 120000,
           }).trim();
         } catch (e) { buildOut = 'BUILD_FAIL: ' + (e.stderr || e.message); }
@@ -1179,7 +1179,7 @@ const server = createServer((req, res) => {
         // build 生效（预览进程内自测：DSH_THEME_NO_RESTART 跳过重启，产物下次加载生效）
         let buildOut = '';
         try {
-          buildOut = execSync(`PATH="/var/packages/DeepSeekHarness-NAS/target/bin:$PATH" DSH_THEME_NO_RESTART=1 node build.cjs`, {
+          buildOut = execSync(`PATH="${dirname(process.execPath)}:$PATH" DSH_THEME_NO_RESTART=1 node build.cjs`, {
             cwd: THEME_ROOT, encoding: 'utf8', timeout: 120000,
           }).trim().split('\n').filter((l) => /OK:|❌|FAIL/.test(l)).join(' | ');
         } catch (e) { buildOut = 'BUILD_FAIL: ' + (e.stderr || e.message); }
@@ -1264,7 +1264,7 @@ const server = createServer((req, res) => {
         // build 生效（与 /api/theme-apply 同模式：跳过 restart，新产物下次启动即生效）
         let buildOut = '';
         try {
-          buildOut = execSync(`PATH="/var/packages/DeepSeekHarness-NAS/target/bin:$PATH" DSH_THEME_NO_RESTART=1 node build.cjs`, {
+          buildOut = execSync(`PATH="${dirname(process.execPath)}:$PATH" DSH_THEME_NO_RESTART=1 node build.cjs`, {
             cwd: THEME_ROOT, encoding: 'utf8', timeout: 120000,
           }).trim();
         } catch (e) { buildOut = 'BUILD_FAIL: ' + (e.stderr || e.message); }
@@ -1408,8 +1408,9 @@ const server = createServer((req, res) => {
 async function openBrowser() {
   if (noOpen || !existsSync(join(SCRIPT_DIR, '..', '..', 'pwviewer', 'node_modules', 'playwright'))) return;
   try {
-    const { chromium } = await import('/volume1/VirtualDSM/DeepSeekHarness/pwviewer/node_modules/playwright/index.mjs');
-    const CHROME = '/volume1/VirtualDSM/DeepSeekHarness/pwviewer/browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+    const PW_IMPORT = process.env.MS_PWIMPORT || join(SCRIPT_DIR, '..', '..', 'pwviewer', 'node_modules', 'playwright', 'index.mjs');
+    const { chromium } = await import(pathToFileURL(PW_IMPORT).href);
+    const CHROME = process.env.MS_CHROME || join(SCRIPT_DIR, '..', '..', 'pwviewer', 'browsers', 'chromium_headless_shell-1243', 'chrome-headless-shell-linux64', 'chrome-headless-shell');
     const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-software-rasterizer','--no-zygote','--single-process','--disable-fontconfig'] });
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
     await page.goto('http://127.0.0.1:' + PORT + '/', { waitUntil: 'load', timeout: 30000 });
