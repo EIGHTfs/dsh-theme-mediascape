@@ -15,6 +15,7 @@
 - [七、界面操作（dock 工具条）](#七界面操作dock-工具条)
 - [八、在线资源与自定义素材](#八在线资源与自定义素材)
 - [目录结构](#目录结构)
+- [媒体加载与鉴权代理](#媒体加载与鉴权代理视频开屏加载不出来时看这里)
 - [安装与要求](#安装与要求)
 - [theme-studio/ 预览环境](#theme-studio-预览环境)
 - [配色盘独立分发调研](#配色盘独立分发调研设计前置考量保持内置的理由)
@@ -271,6 +272,36 @@ function startMyBtn(dock) {
 
 - **开屏素材**：`boot/boot.json` 配置 `files`（多画面数组，优先）/ `file`（单素材，兼容）/ `title` / `sub` / `durationMs`（每段时长）/ `loop`（循环整个集合），改配置刷新即生效（运行时 fetch，无需 build）
 
+## 媒体加载与鉴权代理（视频/开屏加载不出来时看这里）
+
+### 现象
+
+首次打开时，视频壁纸或开屏动画长时间黑屏、甚至一直不出画面；刷新或第二次打开又恢复正常。
+
+### 为什么视频加载不了
+
+当 DSH 前面部署了鉴权代理（要求 `?token=` 的访问链接）时，代理会把**没有携带 token 的媒体请求**重定向（302）。
+
+浏览器的媒体元素（`<video>`）本来用 `Range` 请求**分段拉流**（206），但**跟随 302 重定向会丢失 Range 语义**——
+请求退化成「整文件下载」：上百 MB 的壁纸视频要全部下完才有首帧，表现就是**卡住 / 加载不出来**。
+
+之所以只在**首次**出现：第一次访问会完成一次 token 认证并建立会话 cookie，之后的请求都带 cookie、不再被重定向，
+所以「只有第一次慢」。
+
+### 解决
+
+1. **服务端捕获 token**：DSH 启动时会打印带 token 的访问地址；插件在启动阶段包装 `process.stdout.write`，
+   在打印的瞬间抓取 token（只读取输出分片、原样透传，不改变既有日志行为）；若插件加载晚于该打印，
+   回读 `dsh-proxy.log` 兜底（日志路径按 `DSH_PROXY_LOG` / `DSH_HOME` 推导，不硬编码）。
+2. **下发给前端**：`GET /theme-mediascape-assets/media-token` 返回当前 token（取不到返回空串）。
+3. **媒体 URL 拼 token**：开屏图片/视频、壁纸视频、壁纸图片背景、预载元素、音乐封面——
+   **所有媒体赋值点统一经 `withMediaToken`**，Range 请求即被代理直接放行，恢复 206 分段流式，首帧不再等待整文件下载。
+4. **晚到修正**：token 就绪晚于媒体元素创建时，修正已挂载元素的 `src`（仅在确实需要时重设，避免无谓重新加载）。
+
+### 边界
+
+没有鉴权代理的环境（本地直连、预览服务）行为不变：取不到 token 时媒体 URL 原样使用，不影响加载。
+
 ## 九、HTTP API 一览
 
 > 运行时素材/上传 API 由插件挂载在 DSH 主实例 `/theme-mediascape-assets`（`lib/index.js`）；预览服务（`theme-studio/start-preview.mjs`，默认端口见 start.sh）对同一前缀本地实现同源 API（不依赖主实例），配色盘 API 为预览服务专属。
@@ -280,6 +311,7 @@ function startMyBtn(dock) {
 | 方法与路径 | 说明 |
 |---|---|
 | `GET /theme-mediascape-assets/config` | 上传配置（accept 扩展名 / 上限，前端 file input 用） |
+| `GET /theme-mediascape-assets/media-token` | 当前鉴权 token（供前端拼媒体 URL，使 Range 请求不被鉴权代理 302 重定向；取不到返回空串） |
 | `GET /theme-mediascape-assets/wallpaper/list` | 壁纸列表（id/kind/label/file/size/url；stat 失败的失效文件剔除） |
 | `GET /theme-mediascape-assets/music/list` | 音乐列表（id/name/file/size/cover/url；music.json 自动同步登记/删除/封面） |
 | `GET /theme-mediascape-assets/{boot,music,wallpaper}/<file>` | 素材流式下载（图片/视频/音频）：Range 206 分片 + ETag（If-Range 条件请求命中缓存省流量）；1MB 大块流 + 错误关连接 + 客户端中断释放源流 |

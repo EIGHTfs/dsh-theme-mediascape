@@ -8,6 +8,14 @@
 - 实测：localforage 挂载 + Blob 读写 roundtrip 通过、页面无错误；build 全绿
 
 
+## 1.1.1（反代 token 捕获：媒体 Range 直连）
+
+**dsh-theme-mediascape 1.1.1**——媒体请求绕开反代 302 重定向（Range 直通，首帧更快）：
+- **服务端 token 捕获**（lib/media-token.js）：用 `/token=([A-Za-z0-9_-]{20,})/` 从 DSH 打印的访问地址里抓取 token。插件与宿主同进程、读不到已被消费的 stdout 管道，改为包装 `process.stdout.write`，在 DSH 打印访问地址的瞬间捕获（只读取输出分片、原样透传，不改变日志行为）；插件加载晚于打印时回读 `dsh-proxy.log` 兜底（日志路径按 `DSH_PROXY_LOG` / `DSH_HOME` 推导，不硬编码）
+- **新增 API** `GET /theme-mediascape-assets/media-token`：下发当前 token（取不到返回空串）
+- **前端媒体直连**：**所有媒体赋值点**统一经 `withMediaToken` 拼 token——开屏图片/视频、壁纸视频、壁纸图片背景（`background-image`）、预载 video/img、音乐封面，使 HTMLMediaElement 的 Range 请求被反代直接放行（不再 302 导致丢 Range、视频退化为全量下载）；token 晚于元素创建时修正已挂载媒体的 src（覆盖主路径，避免只覆盖视频而漏图片）
+- **零耦合**：不依赖也不修改宿主；无鉴权代理的环境（本地直连、预览）行为与之前一致
+
 ## 1.1.0（命名空间清理 + 路径可移植化）
 
 **dsh-theme-mediascape 1.1.0**——命名空间清理 + 公开插件可移植性优化（**支持 DSH `>=0.1.6-0 <0.3.0-0`**：0.1.6 开发验证 + 0.2.0-rc.2 实测可用；peerDependencies 声明 `@deepseek-ai/dsh`，防 0.3.0 破坏性变更）：
