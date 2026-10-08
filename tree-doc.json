@@ -48,6 +48,7 @@
   "lib/log.js": "re-export 兼容层（writeLog/logTs 转发自 debug.js；日志统一入口在 debug.js）",
   "lib/online.js": "在线资源下载（.part 断点续传 + SHA-1 校验 + kind 分流）",
   "lib/paths.js": "路径推导：壁纸/音乐目录 / labels 文件 / 在线下载子目录",
+  "lib/stream.js": "Range/206 分片静态服务（公共真源：serveStream/parseRange/pipeFile + HDR_* 常量；实机路由与 theme-studio 预览共用同一实现）",
   "lib/sources.json": "统一资源配置：sources 在线清单 + dirs 目录复制映射",
   "music/知更鸟_HOYO-MiX_Chevy-唯有追赶风的方向(Only_By_Chasing_the_Wind).mp3": "音乐示例（知更鸟 PV 音频）",
   "music/知更鸟_HOYO-MiX_Chevy-唯有追赶风的方向(Only_By_Chasing_the_Wind).png": "音乐示例封面",

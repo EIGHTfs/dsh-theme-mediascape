@@ -30,6 +30,12 @@ import os from 'node:os';
 import { execSync, spawn } from 'node:child_process';
 import { readDebugConfig, logEnabled } from '../lib/debug.js';
 import { writeLog } from '../lib/log.js';
+// 2026-10-09 serveStream 去重：分片静态服务改用插件内的公共实现 lib/stream.js（唯一真源），
+// 本文件不再自带一份（原先两份逐字复制且已分叉：预览缺图片 ETag、缺 1MB HWM 与 close 守卫）。
+import { serveStream as serveStreamCore } from '../lib/stream.js';
+// 媒体/图片类型以插件 config 为准（含 .webm）——预览原先自带表**漏了 .webm** ✗，
+// 导致 webm 壁纸被当 application/octet-stream ⇒ isMedia=false ⇒ 预览里完全不走 Range 分片。
+import { MIME as MIME_BASE } from '../lib/config.js';
 // 2026-09-23 加：upload/DELETE 本地处理（不依赖主实例 30800 插件——30800 禁用时预览页仍可上传/删除）。
 // handleUpload/handleDelete 用真实 $DSH_HOME 数据目录，与素材/列表同源。
 import { handleUpload, handleDelete, handleMusicUpload, handleCoverUpload, handleMusicDelete } from '../lib/handlers.js';
@@ -375,10 +381,12 @@ function writeThemeCss(cssText) {
   return Buffer.byteLength(cssText, 'utf8');
 }
 
+// 2026-10-09 去重：媒体/图片/音频类型统一取自插件 lib/config.js（**含 .webm** —— 原先这张表漏了它 ✗，
+// 导致预览里 webm 壁纸拿不到 video/* ⇒ 判定 isMedia=false ⇒ 完全不参与 Range 分片）；
+// 这里只额外补预览页自身需要的文本类型。
 const MIME = {
+  ...MIME_BASE,
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
-  '.gif': 'image/gif', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.wav': 'audio/wav',
   '.json': 'application/json; charset=utf-8',
 };
 
@@ -509,65 +517,13 @@ function serveFile(res, file) {
   createReadStream(file).pipe(res);
 }
 
-// ── Range/206 分片静态服务（与 lib/index.js serveStream 同步实现，两处保持一致）──
-// 仅 media（video/* | audio/*）且带 Range 才分片：206 + Accept-Ranges + Content-Range + 分片流；
-// 无 Range / 非媒体 → 200 全量（现状不变）；非法 Range → 416 + Content-Range: bytes */<total>。
-// 仅整数解析（RFC7233 bytes=<start>-<end> / bytes=<start>- / bytes=-<suffix>）。
+// ── Range/206 分片静态服务：改用公共实现 lib/stream.js（2026-10-09 去重）──
+// 原先此处有一份与 lib/index.js **逐字复制**的实现，且已实际分叉：本文件缺图片 ETag 分支、
+// 缺 1MB HWM 与 res.on('close') 的 writableFinished 守卫（后者是修「开屏 auto 视频卡住」回归的关键）。
+// 现只保留这个 3 参数薄包装：本文件两处调用点（serveAssetLocal / serveWallpaperLocal）签名不变，
+// mime 由扩展名在此取得；存在性检查已并入公共实现（statSync 失败/非普通文件 → 404）。
 function serveStream(res, req, file) {
-  if (!existsSync(file) || !statSync(file).isFile()) { send(res, 404, 'not found'); return; }
-  const mime = MIME[extname(file).toLowerCase()] || 'application/octet-stream';
-  const st = statSync(file);
-  const total = st.size;
-  // 视频 HTTP 缓存（2026-09-22 方案一，与 lib/index.js serveStream 同步实现）：
-  // ETag 用 mtime-size 指纹——文件被替换后指纹变化，浏览器 If-Range 条件请求不匹配 → 回 200 全量，
-  // 绝不返回旧内容；命中缓存（If-Range 匹配）→ 206 分片（浏览器直接用缓存分片，不重新传输）。
-  const etag = '"' + st.mtimeMs + '-' + total + '"';
-  const isMedia = /^(video|audio)\//.test(mime);
-  const range = (req.headers && req.headers.range) || '';
-  const ifRange = (req.headers && req.headers['if-range']) || '';
-  // 条件请求：客户端缓存了旧分片且 If-Range 与当前 etag 不匹配（文件已变）→ 放弃 206、回 200 全量
-  if (isMedia && ifRange && ifRange !== etag) {
-    res.writeHead(200, { 'content-type': mime, 'cache-control': 'public, max-age=86400', 'etag': etag });
-    createReadStream(file).pipe(res);
-    return;
-  }
-  if (!isMedia || !range) {
-    // 媒体无 Range → 200 全量 + 缓存；非媒体 → 保持 no-cache（配置/页面即时生效）
-    const h = isMedia
-      ? { 'content-type': mime, 'cache-control': 'public, max-age=86400', 'etag': etag }
-      : { 'content-type': mime, 'cache-control': 'no-cache' };
-    res.writeHead(200, h);
-    createReadStream(file).pipe(res);
-    return;
-  }
-  const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
-  let start = null, end = null;
-  if (m && m[1] !== '') start = Number(m[1]);
-  if (m && m[2] !== '') end = Number(m[2]);
-  // 非法 Range（不是 bytes=N-M 形）→ 416 直接拒绝（RFC7233 语法错误不应按全量发）
-  if (!m) {
-    res.writeHead(416, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache', 'content-range': `bytes */${total}` });
-    res.end();
-    return;
-  }
-  // bytes=-<suffix>：末尾 suffix 字节（start=total-suffix, end=total-1）；bytes=<start>-：到文件尾
-  if (start === null && end !== null && Number.isInteger(end) && end >= 0) { start = Math.max(total - end, 0); end = total - 1; }
-  if (start === null) start = 0;
-  if (end === null || end >= total) end = total - 1;
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= total) {
-    res.writeHead(416, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache', 'content-range': `bytes */${total}` });
-    res.end();
-    return;
-  }
-  res.writeHead(206, {
-    'content-type': mime,
-    'cache-control': 'public, max-age=86400',
-    'etag': etag,
-    'accept-ranges': 'bytes',
-    'content-range': `bytes ${start}-${end}/${total}`,
-    'content-length': end - start + 1,
-  });
-  createReadStream(file, { start, end }).pipe(res);
+  serveStreamCore(res, req, file, MIME[extname(file).toLowerCase()] || 'application/octet-stream');
 }
 
 // ── 真实数据目录（与 lib/paths.js 同推导：$DSH_HOME/theme-mediascape/wallpaper|music|boot|logs） ──
