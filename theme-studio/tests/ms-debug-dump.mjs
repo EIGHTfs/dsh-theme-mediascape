@@ -25,7 +25,9 @@ const PW_IMPORT = process.env.MS_PWIMPORT || (PW_ROOT ? pURL(jn(PW_ROOT, 'node_m
 const { chromium } = await import(PW_IMPORT);
 
 // 开屏动画调试 dump：patch matchMedia → 验证 playTransformIntro 路径
-const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+// 2026-10-09 修：原先漏传自推导出的库路径（MS_LIBS）⇒ chromium 找不到 libatk 等库而启动失败。
+//   与 theme-studio/tests/ms-boot-render-check.mjs / test/e2e/boot-e2e-check.mjs 保持一致。
+const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox", "--disable-dev-shm-usage"], env: { ...process.env, LD_LIBRARY_PATH: MS_LIBS, FONTCONFIG_FILE: MS_FONTS } });
 const page = await browser.newPage();
 await page.addInitScript(() => {
   // 强制 prefers-reduced-motion: no-preference（headless-shell 默认 reduce）

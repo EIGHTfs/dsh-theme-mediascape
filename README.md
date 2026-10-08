@@ -397,24 +397,37 @@ node theme-studio/tests/ms-file-move-robustness.mjs   # 移动壁纸/音乐/封�
   `music.json` 自动清洗孤儿 cover
 - **移回文件** → 列表恢复
 
-### debug 模式（多开关：配色服务 / 预览页 / 日志，各自独立）
+### debug 模式（配置分层：仓库默认 + 运行态覆盖；多开关：配色服务 / 预览页 / 日志）
 
-配置文件**不随插件下发、不入库**，只能手动创建（数据目录，`$DSH_HOME` 缺省为 `~/.dsh`）：
+配置分两层（2026-10-09 起）：**默认值随仓库下发**（插件根 `debug.default.json`，入库、随版本升级），
+运行态只需在数据目录写**想覆盖的键**（`$DSH_HOME/theme-mediascape/debug.json`，`$DSH_HOME` 缺省 `~/.dsh`）：
 
 ```jsonc
+// $DSH_HOME/theme-mediascape/debug.json —— 只写要覆盖的键即可，其余回落 debug.default.json
 {
-  "log": true,          // 总日志开关：开启时壁纸切换 / 配色操作 / 预览访问 / 上传行为 / 服务启动 / API 耗时都写运行态日志
-  "theme-swatch": true, // 配色服务开关：主题 apply 时自动拉起取色器（theme-swatch.html + 配色 API）；关 → 页面 404
-  "preview": true       // 预览页开关：主题 apply 时自动拉起预览页（preview.html）；关 → 页面 404
+  "log": { "wallpaper": true, "api": false },  // 按类别开关（也可写 true=全开 / false=全关）
+  "logging": {
+    "mediaDetail": true,   // 切换级全字段：预载就绪 / 是否复用预载 / 出画间隔 / 是否带 token 等（false=只留事件主干）
+    "maxBytes": 1048576,   // 单文件轮转阈值（字节）
+    "keep": 3              // 轮转保留份数（.1/.2/.3）
+  },
+  "theme-swatch": true,    // 配色服务（仓库默认 false，开发用）
+  "preview": true          // 预览页（仓库默认 false，开发用）
 }
 ```
 
 - **任意新键自动透传**：debug.json 里加任意未知键（如 `"performance": true`）无需改代码，`readDebugConfig()` 自动带出、`isDebug('performance')` 可直接判断——以后加 debug 开关只改配置文件
-- **日志统一入口**：所有运行态日志（含 build 期胶囊诊断 `build-capsules.log`）都经 `lib/debug.js` 的 `writeLog(name, entry)` 单点写入，受 `log` 总开关控制——关闭时任何日志零落盘，无绕过开关的散落直写（`lib/log.js` 为 re-export 兼容层）
+- **日志统一入口**：所有运行态日志（含 build 期胶囊诊断 `build-capsules.log`）都经 `lib/debug.js` 的 `writeLog(name, entry)` 单点写入，受 `log` 类别开关控制——关闭时任何日志零落盘，无绕过开关的散落直写（`lib/log.js` 为 re-export 兼容层）
+- **轮转可配**：`logging.maxBytes` / `logging.keep` 控制单文件阈值与保留份数（缺失/非法回落 1MB / 3 份，与旧行为一致）
 
 - **任一开关开** → 每次 `node build.cjs` 自动执行 `theme-studio/tests/` 下的自测脚本（任一失败即标红）
-- **log 开启** → 运行态 `$DSH_HOME/theme-mediascape/logs/` 按类生成日志文件，每条带日期时间（`YYYY-MM-DD HH:mm:ss.SSS`），单文件超 1MB 自动轮转（`.1`/`.2`/`.3` 滚动，最多保留 3 份历史）：
-  - `wallpaper.log`：壁纸切换事件（前端上报）
+- **log 开启** → 运行态 `$DSH_HOME/theme-mediascape/logs/` 按类生成日志文件，每条带日期时间（`YYYY-MM-DD HH:mm:ss.SSS`）+ 自动轮转：
+  - `wallpaper.log`：壁纸切换链路（前端上报）。除 `switch` / `video-ended` 外，2026-10-09 起增加三个排查用事件：
+    `mount`（本次挂载用的是哪来的元素：`source` = `takeover`（开屏移交的**同一元素/同一份流**）｜`preload`（复用预载元素）｜`new`（新建元素从头加载）；
+    并记 `readyState` / `bufferedS` / `tokenized`）、`preload`（只在**真正发起**一次预载时记，含 `remainS` 距结尾剩余秒）、
+    `first-frame`（`gapMs` = ended→新视频出画面的间隔；受 timeupdate 约 250ms 节流，仅用于粗判，精确口径见测试脚本）
+  - `api.log`：API 请求耗时。媒体请求额外记 `kind`(video/image)、`tokened`(URL 是否带反代 token)、`range`、`ifRange`
+    ——用来直接判定「是否 Range 直通」与「是否因缺 token 被反代 302 ⇒ 丢 Range 退化整文件」
   - `theme-swatch.log`：配色操作（theme-save / theme-apply / 页面访问）
   - `preview.log`：预览页访问
   - `upload.log`：上传行为（上传/音乐上传/封面上传）

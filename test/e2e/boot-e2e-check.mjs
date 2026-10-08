@@ -15,6 +15,9 @@ function findNeighbor(name, up = 8) {
 }
 const PW_ROOT = process.env.PW_ROOT || findNeighbor('pwviewer');
 const PW_BROWSERS = process.env.MS_BROWSERS || (PW_ROOT ? jn(PW_ROOT, 'browsers') : '');
+// 2026-10-09 修复：此处原先缺失赋值前缀，只留下孤儿三元 ⇒ 文件根本无法解析（SyntaxError: Unexpected token '?'），
+//   该 e2e 从未真正跑起来过。按姊妹文件 theme-studio/tests/ms-boot-render-check.mjs 的同一写法补回。
+const CHROME = process.env.MS_CHROME || (PW_ROOT
   ? jn(PW_BROWSERS, exSync(jn(PW_BROWSERS, 'chromium-1243')) ? 'chromium-1243/chrome-linux64/chrome' : 'chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell')
   : '');
 const MS_LIBS = process.env.MS_CHROMELIBS || findNeighbor('pwviewer-libs');

@@ -38,7 +38,10 @@ const BOOT_JSON = join(process.env.DSH_HOME || join(os.homedir(), ".dsh"), "them
 const OUT = [];
 function log(tag, ok, msg) { OUT.push(`${ok ? "PASS" : "FAIL"} [${tag}] ${msg}`); console.log(`${ok ? "PASS" : "FAIL"} [${tag}] ${msg}`); }
 
-const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+// 2026-10-09 修：此处原先**没有把自推导结果传给 launch**（MS_LIBS/MS_FONTS 算出来了却没用）⇒
+//   chromium 继承父进程环境、找不到 pwviewer-libs 里的 libatk 等库 ⇒ 报 "libatk-1.0.so.0: cannot open"。
+//   按姊妹文件 test/e2e/boot-e2e-check.mjs 的写法补上 env。
+const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox", "--disable-dev-shm-usage"], env: { ...process.env, LD_LIBRARY_PATH: MS_LIBS, FONTCONFIG_FILE: MS_FONTS } });
 
 // ── A) 开屏真实渲染（file:// 宿主，fetch 失败回退 GIF_DATA 仍应渲染）──
 {
@@ -61,7 +64,10 @@ const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-san
     log("A-boot-skip", gone, "点击跳过可关闭开屏");
   }
   // file:// 下 fetch 必然报网络错误（scheme 不支持）——只断言无「未捕获异常」；fetch 错误属预期
-  const realErrors = errors.filter((e) => !/Fetch API cannot load file:|Failed to load resource/.test(e));
+  // 2026-10-09 修：过滤条件只覆盖了旧版 Chromium 的文案（`Fetch API cannot load file:`）；新版对 file:// 上的
+  //   fetch 报的是 `blocked by CORS policy: Cross origin requests are only supported for protocol schemes`，
+  //   于是豁免失效、用例误报 FAIL（本用例此前因 chromium 起不来从未跑到这一行，P2 修复后才暴露）。
+  const realErrors = errors.filter((e) => !/Fetch API cannot load file:|Failed to load resource|blocked by CORS policy: Cross origin requests are only supported for protocol schemes/.test(e));
   log("A-no-uncaught", realErrors.length === 0, realErrors.length ? realErrors.join(" | ") : "无未捕获异常（fetch 网络错误属 file:// 预期）");
   await page.close();
 }

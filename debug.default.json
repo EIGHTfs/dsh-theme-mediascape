@@ -1,0 +1,20 @@
+{
+  "_comment": "dsh-theme-mediascape 默认配置（随仓库入库）。运行态覆盖写在 $DSH_HOME/theme-mediascape/debug.json —— 那边只需写想覆盖的键，缺失/非法一律回落到本文件的默认值（见 lib/debug.js 的 readDebugConfig 合并逻辑）。",
+  "log": {
+    "wallpaper": true,
+    "api": true,
+    "upload": true,
+    "startup": true,
+    "preview": true,
+    "theme-swatch": true,
+    "build-capsules": true
+  },
+  "logging": {
+    "_comment": "日志行为配置：mediaDetail=切换级全字段（预载就绪/是否复用预载/出画间隔/是否带 token 等）；maxBytes/keep=单文件轮转阈值与保留份数",
+    "mediaDetail": true,
+    "maxBytes": 1048576,
+    "keep": 3
+  },
+  "theme-swatch": false,
+  "preview": false
+}

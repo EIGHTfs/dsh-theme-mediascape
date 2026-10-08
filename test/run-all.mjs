@@ -85,6 +85,7 @@ const ENV_SENSITIVE = [
   'ui-dock-upload-remove-check.mjs',   // 录屏 + 真实上传移除（filechooser 弹窗依赖）
   'ui-media-no-overlap-check.mjs',     // 多 iframe 媒体不重叠（自启浏览器实例，kill 时序竞态）
   'upload-api-check.mjs',              // 自启预览服务 + PID 探测（与总测试服务状态冲突）
+  'ms-switch-continuity-check.mjs',    // 需预览服务 + 浏览器（真实切换计时，本机 chromium 资源较重）
 ];
 const isEnvSensitive = (name) => ENV_SENSITIVE.some((s) => name.endsWith(s));
 

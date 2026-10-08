@@ -8,6 +8,19 @@
 - 实测：localforage 挂载 + Blob 读写 roundtrip 通过、页面无错误；build 全绿
 
 
+## 1.1.2（开屏移交流 token 前置 + 日志分层可配 + 切换链路量化）
+
+**dsh-theme-mediascape 1.1.2**——修「开屏视频移交成壁纸后偶发不连贯」，并把运行态日志升级为**可配置、可自证**：
+
+- **开屏移交流的 token 前置**（lib/client-parts/scenes/boot.js）：`file:"auto"` 的开屏视频与壁纸层是**同一元素、同一份流**（播完移交、不重复加载），因此这条流的品质在挂载那一刻就定型。原实现里 token 由异步 API 取回，与媒体赋值抢时序——未赶上则 src 不带 token、请求被反代 302、HTMLMediaElement 跟随 302 丢失 Range（退化为整文件），而这份退化流随移交一路带到壁纸层 ⇒ 表现为**偶发**不连贯（是否复发取决于时序）。现于 `resolveAutoBootVideo()` 挂载前做**有界 token 等待**：同步可得（内存/sessionStorage/页面 URL）则零等待，最多等 800ms，取不到照旧按无 token 继续 ⇒ 不阻塞开屏。
+- **token 同步取值**（lib/client-parts/foundation/utils.js）：新增 `syncMediaToken()`（内存 → sessionStorage → 当前页面 URL 的 `?token=`，全程同步、零等待），`withMediaToken` 与 token 探测改为先同步后异步；壁纸清单加载前同样确保 token 就绪（该处本就在等网络请求，不新增可感知延迟）。
+- **移除「只重设尚未开始加载的元素」这一抑制**：移交场景恰恰是**已在加载的同一元素被接走**，抑制重设会让无 token 的退化流一直播下去，故保留「token 一到就重设 src」，改由源头保证首次赋值即带 token。
+- **日志分层配置化**（新增 debug.default.json，随仓库入库）：`lib/debug.js` 的配置读取改为「仓库默认 ← 运行态覆盖」两层合并（对象键做一层深合并，运行态只写想覆盖的键即可）；`logging.mediaDetail` / `maxBytes` / `keep` 分别控制详细字段与单文件轮转阈值、保留份数（兜底 1MB/3 份，未配置时行为与旧版一致）；修正 `logging` 这类对象型配置被既有「未知键归一为布尔」逻辑吞掉、导致配置全部失效的问题。
+- **切换级全字段日志**（lib/client-parts/scenes/wallpaper.js + lib/handlers-log.js）：新增 `mount`（本次挂载元素的来源：`takeover` 开屏移交同一元素 / `preload` 复用预载元素 / `new` 新建从头加载，并记 readyState、已缓冲秒数、src 是否带 token）、`preload`（只在**真正发起**一次预载时记，含距结尾剩余秒——避免 timeupdate 频次导致刷屏）、`first-frame`（ended → 出画面间隔）；`video-ended` 增记预载 readyState 与是否达复用快路径（readyState≥2）。详细字段由**服务端按 mediaDetail 裁剪**，客户端不感知配置。
+- **媒体请求诊断字段**（lib/index.js）：`api.log` 的媒体请求增记 `kind`、`tokened`（URL 是否带反代 token）、`range`、`ifRange`，可直接判定「是否 Range 直通」与「是否因缺 token 被 302 退化」。
+- **封面解析结果落地缓存**（lib/client-parts/sound/music-extract.js + foundation/utils.js）：内嵌封面解析结果按「id + 字节数」指纹写入 localForage（单条读、8MiB 预算 + LRU 逐出、独立命名空间、不可用时静默降级），省去每次页面加载重读整首音频抽取 ID3/FLAC 封面的开销；同时删除写入调用点为 0 的自写 IndexedDB 门面（wallpapers/music/covers 三张表）与恒空的音乐缓存死读路径。
+- **测试与文档**：新增入库测试 `theme-studio/tests/ms-switch-continuity-check.mjs`（切换连贯性量化：重复 N 次记录 ended→出画面间隔分布）、`ms-media-cache-check.mjs`（缓存门面行为）；修 `test/e2e/boot-e2e-check.mjs` 的孤儿三元语法错误（该 e2e 此前无法解析）与两个浏览器用例漏传库路径（自推导出的 LD_LIBRARY_PATH 未交给 launch ⇒ chromium 找不到 libatk 而启动失败）、以及一处陈旧 CORS 豁免文案（新版 Chromium 报错措辞变化导致豁免失效）；全套由 30 通过 / 3 失败 → **34 通过 / 0 失败**；README 的 debug 模式一节同步为「配置分层 + 新事件 + 新字段 + 轮转可配」。
+
 ## 1.1.1（反代 token 捕获：媒体 Range 直连）
 
 **dsh-theme-mediascape 1.1.1**——媒体请求绕开反代 302 重定向（Range 直通，首帧更快）：
