@@ -361,18 +361,47 @@ function startMyBtn(dock) {
 
 > **支持 DSH 版本**：`>=0.1.6-0 <0.3.0-0`（0.1.6 开发验证 + 0.2.0-rc.2 实测可用；防 0.3.0 破坏性变更）——package.json `peerDependencies` 声明 `@deepseek-ai/dsh`。
 
-### 方式一：打包安装（本主题暂未发布 npm）
+### 方式一：从 GitHub 源安装（公开仓库，匿名可装）
 
-```powershell
-dsh plugin --profile web add ./dsh-theme-mediascape{tag}.tgz
+⚠️ `dsh plugin --profile <名> add …` 当前实测**会挂死且零输出**（两次都以 timeout 结束、日志为空）⇒
+安装改在**该 profile 目录里直跑 pnpm**（`dsh plugin` 的设计就是把参数转发给 profile 的 pnpm，两者本应等价）：
+
+```bash
+cd <DSH_HOME>/profiles/<profile>
+pnpm add "github:EIGHTfs/dsh-theme-mediascape#<commit>"     # 用 commit 固定版本（远端暂无 tag）
+```
+
+**两条前置条件（缺一即失败；本仓库有 `prepack` 构建脚本，两条都需要）**：
+
+1. **本机要有 `npm`** —— pnpm 构建 git 来源的包时会在临时目录执行 `npm install`；
+   缺 npm 时报 `ERR_PNPM_PREPARE_PACKAGE` + `spawn ENOENT: npm: command not found`。
+2. **pnpm 11 默认禁止 git 源依赖执行构建脚本**（供应链策略）⇒ 先在 profile 的
+   `pnpm-workspace.yaml` 里放行，否则报 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`：
+
+   ```yaml
+   allowBuilds:
+     dsh-theme-mediascape@https://codeload.github.com/EIGHTfs/dsh-theme-mediascape/tar.gz/<commit>: true
+   ```
+
+   ⚠️ key 里带 commit 哈希 ⇒ 换版本/换提交要同步改这一行。
+
+装完重启 `dsh web` 生效。本仓库是 monorepo（主题在 `packages/<主题包目录>`），需要指定子目录时用
+`github:EIGHTfs/dsh-theme-mediascape#path:/packages/<主题包目录>`（换行内联写法见下文「配色盘/主题分开装」一节）。
+
+### 方式二：打包安装（本地 tgz）
+
+```bash
+cd <DSH_HOME>/profiles/<profile>
+pnpm add ./dsh-theme-mediascape{tag}.tgz
 # 装完重启 dsh web 生效
 ```
 
 
 ### 卸载
 
-```powershell
-dsh plugin --profile web remove dsh-theme-mediascape
+```bash
+cd <DSH_HOME>/profiles/<profile>
+pnpm remove dsh-theme-mediascape
 # 重启 dsh web 生效
 ```
 
