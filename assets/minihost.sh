@@ -21,6 +21,8 @@ if [ ! -f "$TOOL" ]; then
   exit 2
 fi
 ARGS=(--plugin "$ROOT" --port "${PORT:-31100}")
-[ -f "$ROOT/assets/preview.html" ] && ARGS+=(--preview "$ROOT/assets/preview.html")
+# 空引用修正（2026-10-13）：本插件**没有** assets/preview.html —— 预览页是 theme-studio/preview.html，
+#   由 theme-studio/start-preview.mjs 的路由提供（该页依赖其 API，不经 mini-host），故不再传 --preview。
+# [ -f "$ROOT/assets/preview.html" ] && ARGS+=(--preview "$ROOT/assets/preview.html")
 [ -d "$ROOT/lib" ] && ARGS+=(--static "$ROOT/lib")
 exec "${NODE_BIN:-node}" "$TOOL" "${ARGS[@]}" "$@"
