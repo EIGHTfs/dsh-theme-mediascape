@@ -8,6 +8,19 @@
 - 实测：localforage 挂载 + Blob 读写 roundtrip 通过、页面无错误；build 全绿
 
 
+## 1.1.3（预览内置最小 mini-host：素材 API 不再依赖主实例）
+
+**dsh-theme-mediascape 1.1.3**——把「本地跑本插件服务端」内置进 `theme-studio/start-preview.mjs`，
+预览的 `/theme-mediascape-assets/*` 不再必须转发主实例 30800：
+
+- **内置最小后端**：同进程 `import` 本插件 `lib/index.js`，用宽容 ctx（只实现 `webServer.register`）跑一次 `apply`，
+  收集到 `prefix:/theme-mediascape-assets` 路由；命中即用 mock req/res 就地执行，未命中再降级 `proxyToDsh(30800)`。
+- **取舍**：apply 只跑一次（不是每请求 fork）——改服务端代码需重启预览服务；换来的是零外部依赖、零额外进程。
+- **启动方式不变**：`node theme-studio/start-preview.mjs --port 30999`，监听 `0.0.0.0`（局域网可访问）。
+- 实测：`[local-backend] 已就绪，路由 1 条`；`/theme-mediascape-assets/nonexistent → 404` 由插件 handler 处理；
+  `music/list`、`wallpaper/list` 仍走本地快路径；根路径 200（1.59MB preview.html）。
+- 同时撤掉 `assets/minihost/` 与 `assets/minihost.sh`（原浅包装改为内置，不再保留副本）。
+
 ## 1.1.2（开屏移交流 token 前置 + 日志分层可配 + 切换链路量化）
 
 **dsh-theme-mediascape 1.1.2**——修「开屏视频移交成壁纸后偶发不连贯」，并把运行态日志升级为**可配置、可自证**：

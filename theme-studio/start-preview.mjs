@@ -43,6 +43,87 @@ import { handleUpload, handleDelete, handleMusicUpload, handleCoverUpload, handl
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));       // theme-studio/
 const THEME_ROOT = normalize(join(SCRIPT_DIR, '..'));             // 插件根
 
+/* ───── 内置最小 mini-host：本地跑本插件服务端（不依赖主实例 30800）─────
+ * 为什么内置：/theme-mediascape-assets/* 的素材/列表 API 原先全量转发 30800，
+ *   主实例没跑或插件禁用时预览拿不到真实数据。这里用「同进程 import + 宽容 ctx」
+ *   把插件 lib/index.js 的 webServer 路由跑起来：命中就地处理，未命中再降级 30800。
+ * 最小化取舍：apply 只跑一次（不是每请求 fork）——改服务端代码需重启预览服务。
+ */
+let LOCAL_ROUTES = null;
+let LOCAL_ROUTES_ERR = '';
+async function ensureLocalRoutes() {
+  if (LOCAL_ROUTES) return LOCAL_ROUTES;
+  const routes = [];
+  const noop = () => {};
+  const services = {
+    webServer: { register: (r) => { if (r && typeof r.handler === 'function') routes.push(r); } },
+    tools: { register: noop, list: () => [] },
+    systemPrompt: { section: noop },
+    commands: { register: noop },
+    settings: { register: noop },
+    workspaceRoot: THEME_ROOT,
+  };
+  const makeCtx = () => {
+    const base = {
+      get: (n) => services[n],
+      inject: (names, cb) => { if (typeof cb === 'function') { try { cb(makeCtx()); } catch { /* 可选服务缺失 */ } } return noop; },
+      on: noop, off: noop, once: noop, emit: noop, effect: noop, plugin: noop,
+      set: noop, provide: noop, consume: noop,
+      logger: () => ({ info: noop, warn: noop, error: noop, debug: noop }),
+    };
+    return new Proxy(base, { get: (t, k) => (k in t ? t[k] : noop), has: () => true });
+  };
+  try {
+    const mod = await import(pathToFileURL(join(THEME_ROOT, 'lib', 'index.js')).href);
+    if (typeof mod.apply !== 'function') throw new Error('入口未导出 apply');
+    await mod.apply(makeCtx(), {});
+    LOCAL_ROUTES = routes;
+    console.log(`[local-backend] 已就绪，路由 ${routes.length} 条：${routes.map((r) => `${r.kind}:${r.path}`).join(' ')}`);
+  } catch (e) {
+    LOCAL_ROUTES_ERR = String((e && e.message) || e);
+    LOCAL_ROUTES = [];
+    console.log(`[local-backend] 初始化失败（将降级 30800）：${LOCAL_ROUTES_ERR}`);
+  }
+  return LOCAL_ROUTES;
+}
+
+/** 尝试本地后端处理；命中并已响应返回 true，否则 false（交上层降级 30800）。 */
+async function tryLocalBackend(req, res, pathname) {
+  const routes = await ensureLocalRoutes();
+  if (!routes.length) return false;
+  const route = routes.find((r) => (r.kind === 'prefix' ? pathname.startsWith(r.path) : pathname === r.path));
+  if (!route) return false;
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const body = Buffer.concat(chunks);
+  const { Readable, Writable } = await import('node:stream');
+  const mockReq = new Readable({ read() { this.push(body.length ? body : null); this.push(null); } });
+  mockReq.method = req.method;
+  mockReq.url = req.url;
+  mockReq.headers = req.headers || {};
+  mockReq.socket = { remoteAddress: '127.0.0.1' };
+  mockReq.connection = mockReq.socket;
+  const outChunks = [];
+  const mockRes = new Writable({ write(c, _e, cb) { outChunks.push(Buffer.from(c)); cb(); } });
+  mockRes.statusCode = 200;
+  mockRes.headers = {};
+  mockRes.writeHead = (s, h) => { mockRes.statusCode = s; if (h) Object.assign(mockRes.headers, h); return mockRes; };
+  mockRes.setHeader = (k, v) => { mockRes.headers[k] = v; };
+  mockRes.getHeader = (k) => mockRes.headers[k];
+  const done = new Promise((resolve) => { mockRes.end = (chunk) => { if (chunk) outChunks.push(Buffer.from(chunk)); resolve(); }; });
+  try {
+    await route.handler(mockReq, mockRes);
+    await done;
+  } catch (e) {
+    console.log(`[local-backend] handler 失败（降级 30800）：${String((e && e.message) || e)}`);
+    return false;
+  }
+  console.log(`[local-backend] ${req.method} ${pathname} → ${mockRes.statusCode}`);
+  res.writeHead(mockRes.statusCode, mockRes.headers);
+  res.end(Buffer.concat(outChunks));
+  return true;
+}
+
 // ── 配色对照页组件模拟配置（comps.json，实例数据全外置；缺失/解析失败 → 空列表不崩）──
 let COMPS_CFG = [];
 try {
@@ -116,6 +197,7 @@ function buildIdentityBlock(colors, vars) {
   ].join('\n');
 }
 // 生成 tokens.js 完整内容（TOKENS 由元素 class 键直接推导——零映射，无 6 语义键）
+// dsh-skip-func-length（配色令牌生成：15 键 × alpha/层级分支天然多，函数级拆分列为后续优化项）
 function buildTokensContent(colors, vars, theme) {
   // theme（完整配色真源 json，含每色 alpha）可选：有则用其 alpha 参与 rgba 生成（2026-09-22 json 化）
   const alphaOf = (k, d) => {
@@ -718,7 +800,7 @@ function serveWallpaperLocal(res, req, pathname) {
   serveStream(res, req, file);
 }
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   const pathname = decodeURIComponent(url.pathname);
 
@@ -1051,7 +1133,7 @@ const server = createServer((req, res) => {
       let rules = [];
       // 2026-09-23 运行态化：优先读运行态 capsules.json，缺失/非法回退仓库 theme-studio/capsules.json
       try {
-        const dshHome = process.env.DSH_HOME || (require('os').homedir ? require('os').homedir() : '');
+        const dshHome = process.env.DSH_HOME || (require('os').homedir ? require('os').homedir() : ''); // dsh-skip-residue（本文件是 Node 侧预览脚本，require('os') 属 Node 内置用法，非浏览器 client）
         const rt = join(dshHome, 'theme-mediascape', 'capsules.json');
         if (existsSync(rt)) {
           rules = (JSON.parse(readFileSync(rt, 'utf8')) || {}).rules || [];
@@ -1208,7 +1290,7 @@ const server = createServer((req, res) => {
         }
         // 2026-09-23 运行态化：胶囊配方写运行态 $DSH_HOME/theme-mediascape/capsules.json（不写仓库，仓库只回退可读）。
         // 与 build.cjs RUNTIME_CAPSULES / lib/paths.js runtimeCapsulesPath() 同语义。
-        const dshHome = process.env.DSH_HOME || (require('os').homedir ? require('os').homedir() : '');
+        const dshHome = process.env.DSH_HOME || (require('os').homedir ? require('os').homedir() : ''); // dsh-skip-residue（Node 侧预览脚本，require('os') 为 Node 内置用法，非浏览器 client）
         const file = join(dshHome, 'theme-mediascape', 'capsules.json');
         mkdirSync(join(dshHome, 'theme-mediascape'), { recursive: true });
         let data = { rules: [] };
@@ -1351,6 +1433,8 @@ const server = createServer((req, res) => {
       handleMusicDelete(req, res, rel);
       return;
     }
+    // 本地后端优先（内置最小 mini-host）：素材/列表等 API 不再依赖主实例 30800
+    if (await tryLocalBackend(req, res, pathname)) return;
     // 其余（未匹配的写操作）→ 真实后端（兜底）
     const upstreamPath = req.url; // 原样转发（保留 query：?name= 等）
     proxyToDsh(req, res, upstreamPath);
