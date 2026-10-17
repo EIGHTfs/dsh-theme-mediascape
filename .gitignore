@@ -19,6 +19,8 @@ node_modules.orig/
 *.log
 *.trash*
 *.bak*
+# git-push 插件的克隆进行中标记（克隆结束会自行删除；异常中断会残留，不应入库）
+.dsh-git-push-cloning
 
 
 
